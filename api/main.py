@@ -28,9 +28,11 @@ if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
 from fastapi import FastAPI, HTTPException  # noqa: E402
-from fastapi.responses import JSONResponse  # noqa: E402
+from fastapi.responses import FileResponse, JSONResponse  # noqa: E402
+from fastapi.staticfiles import StaticFiles  # noqa: E402
 from pydantic import BaseModel, Field, field_validator  # noqa: E402
 
+from src.interpret import GEMINI_MODEL, gemini_available  # noqa: E402
 from src.serving import (  # noqa: E402
     UnknownPincode,
     get_service,
@@ -118,7 +120,10 @@ class ScoreOut(BaseModel):
     reasons: list[str]
     expected_loss_if_shipped_inr: float
     flagged_at_binary_threshold: bool
+    is_cod: bool
     resolved: dict[str, Any]
+    plain_language_summary: str | None = None
+    summary_source: Literal["gemini", "template"] | None = None
 
 
 @asynccontextmanager
@@ -140,6 +145,15 @@ app = FastAPI(
 )
 
 
+STATIC_DIR = Path(__file__).resolve().parent / "static"
+
+
+@app.get("/", include_in_schema=False)
+def demo_page() -> FileResponse:
+    """The one-page demo. Same service, same URL, no second process to start."""
+    return FileResponse(STATIC_DIR / "index.html")
+
+
 @app.exception_handler(UnknownPincode)
 async def _unknown_pincode(request, exc: UnknownPincode) -> JSONResponse:
     """A pincode outside the directory is the caller's error, not a crash."""
@@ -154,7 +168,15 @@ def health() -> dict:
     the SHA-256 here is of ``models/final_model.joblib`` itself, and the threshold
     and cut points are read out of that file rather than restated in code.
     """
-    return {"status": "ok", **get_service().describe()}
+    return {
+        "status": "ok",
+        **get_service().describe(),
+        "plain_language_layer": {
+            "configured": gemini_available(),
+            "model": GEMINI_MODEL,
+            "fallback": "built-in template when the key is absent or the call fails",
+        },
+    }
 
 
 @app.get("/sample_orders", tags=["demo"])
@@ -171,12 +193,17 @@ def get_sample_orders(n_per_tier: int = 2) -> dict:
 
 
 @app.post("/score", response_model=ScoreOut, tags=["scoring"])
-def score(order: OrderIn) -> dict:
-    """Score one order: probability, expected rupee loss, tier, reasons."""
+def score(order: OrderIn, explain_plainly: bool = True) -> dict:
+    """Score one order: probability, expected rupee loss, tier, reasons.
+
+    ``explain_plainly`` adds the Gemini plain-language summary. It costs a network
+    round trip and degrades to a built-in template if the key is absent or the
+    call fails, so it can be left on safely.
+    """
     payload = order.model_dump()
     payload["customer_history"] = order.customer_history.model_dump()
     try:
-        return score_order(payload)
+        return score_order(payload, interpret=explain_plainly)
     except UnknownPincode as exc:
         raise HTTPException(422, str(exc)) from exc
     except (KeyError, ValueError) as exc:

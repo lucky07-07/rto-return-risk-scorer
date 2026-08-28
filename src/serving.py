@@ -30,6 +30,7 @@ import pandas as pd
 from src.costs import ALLOW, BLOCK, FEE, CostParams, apply_tiers
 from src.evaluate import risk_reasons
 from src.features import add_engineered_features
+from src.interpret import plain_language_summary
 from src.generate import FESTIVE_WINDOWS, TIER_ETA_DAYS, load_pincode_skeleton, value_band
 from src.models import model_input_columns
 
@@ -259,12 +260,16 @@ def _shap_reasons(service: ScoringService, frame: pd.DataFrame,
 
 
 def score_order(payload: dict, service: ScoringService | None = None,
-                explain: bool = True) -> dict:
+                explain: bool = True, interpret: bool = False) -> dict:
     """Score one order and return the full decision record.
 
     The single entry point for both the API and the UI. Returns the project's own
     ``action`` vocabulary *and* the demo-facing ``action_label``, so nothing that
     already reads ``action`` breaks.
+
+    ``interpret=True`` adds ``plain_language_summary``, a two or three sentence
+    explanation of the same decision. It is off by default because it makes a
+    network call, and it never alters the decision, only describes it.
     """
     service = service or get_service()
     frame = build_scoring_frame(payload, service)
@@ -275,7 +280,7 @@ def score_order(payload: dict, service: ScoringService | None = None,
     tier = str(apply_tiers([probability], service.low_cut, service.high_cut)[0])
     costs = service.costs
 
-    return {
+    record = {
         "order_id": frame["order_id"].iat[0],
         "rto_probability": round(probability, 4),
         "band": TIER_TO_BAND[tier],
@@ -292,6 +297,7 @@ def score_order(payload: dict, service: ScoringService | None = None,
             probability, float(frame["order_value"].iat[0]), costs
         ),
         "flagged_at_binary_threshold": probability >= service.threshold,
+        "is_cod": bool(frame["is_cod"].iat[0]),
         "resolved": {
             "city": frame["city"].iat[0],
             "state": frame["state"].iat[0],
@@ -299,6 +305,13 @@ def score_order(payload: dict, service: ScoringService | None = None,
             "order_value_band": frame["order_value_band"].iat[0],
         },
     }
+    if interpret:
+        # Added after the decision is final. A failure here degrades the wording,
+        # never the decision or the rest of the response.
+        summary = plain_language_summary(record)
+        record["plain_language_summary"] = summary["text"]
+        record["summary_source"] = summary["source"]
+    return record
 
 
 # ---------------------------------------------------------------------------

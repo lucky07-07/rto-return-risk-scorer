@@ -1,0 +1,228 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>COD Return-Risk Scorer</title>
+<style>
+  :root{
+    --bg:#f6f7f9; --card:#fff; --ink:#12161c; --muted:#5b6674; --line:#e3e7ec;
+    --green:#0f7b3f; --green-bg:#e8f6ee; --amber:#8a5a00; --amber-bg:#fdf3e0;
+    --red:#a4232b; --red-bg:#fdeced; --blue:#1f4f8a; --blue-bg:#eaf1fa;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--ink);
+    font:15px/1.55 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif}
+  .wrap{max-width:940px;margin:0 auto;padding:28px 20px 64px}
+  h1{font-size:24px;margin:0 0 4px}
+  .sub{color:var(--muted);font-size:13px;margin-bottom:22px}
+  .sub code{background:#eceff3;padding:1px 5px;border-radius:4px;font-size:12px}
+  .card{background:var(--card);border:1px solid var(--line);border-radius:12px;
+    padding:20px;margin-bottom:16px}
+  .step{font-size:11px;letter-spacing:.09em;text-transform:uppercase;
+    color:var(--muted);font-weight:600;margin-bottom:12px}
+  label{display:block;font-size:12px;color:var(--muted);margin-bottom:5px;font-weight:500}
+  select,input{width:100%;padding:9px 11px;border:1px solid var(--line);
+    border-radius:8px;font-size:14px;background:#fff;color:var(--ink);font-family:inherit}
+  .grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:14px}
+  .row{display:flex;gap:20px;flex-wrap:wrap;align-items:center}
+  button{background:var(--ink);color:#fff;border:0;border-radius:8px;padding:11px 22px;
+    font-size:14px;font-weight:600;cursor:pointer;font-family:inherit;margin-top:16px}
+  button:disabled{opacity:.5;cursor:default}
+  .big{font-size:38px;font-weight:700;line-height:1.1}
+  .unit{font-size:14px;color:var(--muted);font-weight:500}
+  .bar{height:9px;background:#e9edf2;border-radius:99px;overflow:hidden;margin:12px 0 6px}
+  .bar>i{display:block;height:100%;border-radius:99px;transition:width .35s}
+  .badge{display:inline-block;padding:9px 18px;border-radius:8px;font-weight:700;
+    font-size:17px;letter-spacing:.03em}
+  ul{margin:6px 0 0;padding-left:20px}
+  li{margin:5px 0}
+  .plain{background:var(--blue-bg);border:1px solid #cfe0f2;border-left:4px solid var(--blue);
+    border-radius:10px;padding:16px 18px;font-size:15.5px;line-height:1.6}
+  .tag{display:inline-block;font-size:10.5px;letter-spacing:.06em;text-transform:uppercase;
+    color:var(--muted);border:1px solid var(--line);border-radius:99px;
+    padding:2px 9px;margin-left:8px;vertical-align:middle;font-weight:600}
+  .note{background:#fdf3e0;border:1px solid #f0dcae;border-radius:8px;padding:11px 14px;
+    font-size:13px;margin-top:12px;color:#6b4a00}
+  .foot{color:var(--muted);font-size:12px;line-height:1.6;margin-top:26px;
+    border-top:1px solid var(--line);padding-top:16px}
+  .err{background:var(--red-bg);border:1px solid #f3c9cc;color:var(--red);
+    padding:11px 14px;border-radius:8px;font-size:13.5px}
+  .muted{color:var(--muted);font-size:12.5px}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>COD Return-Risk Scorer</h1>
+  <div class="sub" id="meta">Loading model…</div>
+
+  <div class="card">
+    <div class="step">1 · Order</div>
+    <label for="sample">Start from a real order — switch to see all three outcomes</label>
+    <select id="sample"></select>
+    <div id="tiernote"></div>
+    <div class="grid" style="margin-top:16px">
+      <div><label for="pincode">Pincode</label><input id="pincode" maxlength="6"></div>
+      <div><label for="category">Category</label><select id="category"></select></div>
+      <div><label for="order_value">Order value (₹)</label><input id="order_value" type="number" min="1" step="10"></div>
+      <div><label for="discount_pct">Discount (0–0.75)</label><input id="discount_pct" type="number" min="0" max="0.75" step="0.01"></div>
+      <div><label for="delivery_days_est">Courier ETA (days)</label><input id="delivery_days_est" type="number" min="1" max="30" step="0.5"></div>
+      <div><label for="is_cod">Payment</label><select id="is_cod">
+        <option value="true">Cash on delivery</option><option value="false">Paid online</option></select></div>
+      <div><label for="past_orders">Customer's prior orders</label><input id="past_orders" type="number" min="0"></div>
+      <div><label for="past_rto_count">…of which returned</label><input id="past_rto_count" type="number" min="0"></div>
+    </div>
+    <label for="address_line" style="margin-top:14px">Delivery address</label>
+    <input id="address_line">
+    <button id="go">Score this order</button>
+  </div>
+
+  <div id="out" style="display:none">
+    <div class="card">
+      <div class="step">In plain English<span class="tag" id="src"></span></div>
+      <div class="plain" id="plain"></div>
+    </div>
+
+    <div class="card">
+      <div class="step">2 · Risk</div>
+      <div class="row" style="justify-content:space-between">
+        <div><span class="big" id="prob"></span> <span class="unit">chance of coming back</span></div>
+        <div style="text-align:right"><div class="muted" id="where"></div></div>
+      </div>
+      <div class="bar"><i id="fill"></i></div>
+    </div>
+
+    <div class="card">
+      <div class="step">3 · Expected loss if shipped</div>
+      <div class="big" id="loss"></div>
+      <div class="muted" style="margin-top:6px" id="lossnote"></div>
+    </div>
+
+    <div class="card">
+      <div class="step">4 · Decision</div>
+      <span class="badge" id="badge"></span>
+      <div class="muted" style="margin-top:10px" id="advice"></div>
+      <div class="step" style="margin-top:18px">Why</div>
+      <ul id="reasons"></ul>
+    </div>
+  </div>
+
+  <div id="error"></div>
+
+  <div class="foot">
+    Advisory only. This scores an order and explains the score, it never captures,
+    refunds, blocks or contacts anyone. Trained on synthetic orders built on the real
+    India Post pincode directory and calibrated against published Indian return
+    statistics. <strong>No claim of validation on real merchant data.</strong>
+    Sample orders come from the validation split, never the sealed test set.
+  </div>
+</div>
+
+<script>
+const CATS = ["fashion","footwear","beauty","accessories","home_kitchen","electronics"];
+const $ = id => document.getElementById(id);
+let SAMPLES = null;
+
+function fill(p){
+  $("pincode").value = p.pincode;
+  $("category").value = p.category;
+  $("order_value").value = p.order_value;
+  $("discount_pct").value = p.discount_pct;
+  $("delivery_days_est").value = p.delivery_days_est;
+  $("is_cod").value = String(p.is_cod);
+  $("past_orders").value = p.customer_history.past_orders;
+  $("past_rto_count").value = p.customer_history.past_rto_count;
+  $("address_line").value = p.address_line;
+}
+
+async function boot(){
+  $("category").innerHTML = CATS.map(c=>`<option value="${c}">${c}</option>`).join("");
+  try{
+    const h = await (await fetch("health")).json();
+    $("meta").innerHTML = `${h.estimator} · decision cut-offs
+      <code>${h.frozen_tier_cuts.low_cut}</code> / <code>${h.frozen_tier_cuts.high_cut}</code>
+      · model <code>${h.model_sha256.slice(0,12)}</code>
+      · plain English by ${h.plain_language_layer.configured ? h.plain_language_layer.model : "built-in template"}`;
+
+    SAMPLES = await (await fetch("sample_orders")).json();
+    $("sample").innerHTML = SAMPLES.orders.map((o,i)=>
+      `<option value="${i}">${o.label} example — ${o.payload.category}, ₹${o.payload.order_value.toLocaleString("en-IN")}, ${o.payload.is_cod?"cash on delivery":"paid online"}</option>`).join("");
+    $("sample").onchange = ()=>{ const o = SAMPLES.orders[$("sample").value]; fill(o.payload); showTierNote(o.label); score(); };
+    // ?sample=N deep-links a specific example, so a link can point straight at
+    // an ALLOW, REVIEW or BLOCK case instead of asking the reader to hunt for it.
+    const want = parseInt(new URLSearchParams(location.search).get("sample") || "0");
+    const idx = Number.isInteger(want) && want >= 0 && want < SAMPLES.orders.length ? want : 0;
+    $("sample").value = idx;
+    fill(SAMPLES.orders[idx].payload);
+    showTierNote(SAMPLES.orders[idx].label);
+    score();
+  }catch(e){ $("error").innerHTML = `<div class="err">Could not reach the service: ${e}</div>`; }
+}
+
+function showTierNote(label){
+  const n = SAMPLES && SAMPLES.tier_notes && SAMPLES.tier_notes[label];
+  $("tiernote").innerHTML = n ? `<div class="note"><strong>About the ${label} tier.</strong> ${n}</div>` : "";
+}
+
+async function score(){
+  $("go").disabled = true; $("error").innerHTML = "";
+  const body = {
+    pincode: $("pincode").value.trim(),
+    address_line: $("address_line").value,
+    category: $("category").value,
+    order_value: parseFloat($("order_value").value),
+    discount_pct: parseFloat($("discount_pct").value),
+    is_cod: $("is_cod").value === "true",
+    delivery_days_est: parseFloat($("delivery_days_est").value),
+    customer_history: {
+      past_orders: parseInt($("past_orders").value || 0),
+      past_rto_count: parseInt($("past_rto_count").value || 0)
+    }
+  };
+  try{
+    const res = await fetch("score", {method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(body)});
+    if(!res.ok){
+      const d = await res.json();
+      throw new Error(typeof d.detail === "string" ? d.detail : JSON.stringify(d.detail));
+    }
+    render(await res.json());
+  }catch(e){
+    $("out").style.display = "none";
+    $("error").innerHTML = `<div class="err">${e.message}</div>`;
+  }finally{ $("go").disabled = false; }
+}
+
+function render(r){
+  $("out").style.display = "block";
+  $("plain").textContent = r.plain_language_summary || "—";
+  $("src").textContent = r.summary_source === "gemini" ? "Gemini" : "built-in template";
+
+  const pct = r.rto_probability*100;
+  $("prob").textContent = pct.toFixed(1) + "%";
+  $("where").textContent = `${r.resolved.city}, ${r.resolved.state} · ${r.resolved.pincode_tier}`;
+  const col = r.action_label==="ALLOW" ? "var(--green)" : r.action_label==="REVIEW" ? "#c98a00" : "var(--red)";
+  $("fill").style.width = Math.max(pct,1.5)+"%";
+  $("fill").style.background = col;
+
+  $("loss").textContent = "₹" + r.expected_loss_if_shipped_inr.toLocaleString("en-IN",{minimumFractionDigits:2,maximumFractionDigits:2});
+  $("lossnote").textContent = "Chance of return × ₹200 of wasted forward and reverse shipping. Not the order value — a return burns delivery cost, it does not lose the sale price.";
+
+  const b = $("badge");
+  b.textContent = r.action_label;
+  const styles = {ALLOW:["var(--green-bg)","var(--green)"],REVIEW:["var(--amber-bg)","var(--amber)"],BLOCK:["var(--red-bg)","var(--red)"]};
+  b.style.background = styles[r.action_label][0]; b.style.color = styles[r.action_label][1];
+
+  const advice = {allow_cod:"Ship on cash on delivery. No friction for a good customer.",
+    charge_cod_fee:"Offer cash on delivery with a small fee. Price the risk instead of losing the sale.",
+    disable_cod:"Ask for online payment instead. Avoids the shipping loss entirely."};
+  $("advice").textContent = r.is_cod ? advice[r.action]
+    : "This order is already paid online, so there is no cash-on-delivery decision to make here.";
+
+  $("reasons").innerHTML = (r.reasons||[]).map(x=>`<li>${x}</li>`).join("") || "<li>No single factor stood out.</li>";
+}
+
+$("go").onclick = score;
+boot();
+</script>
+</body>
+</html>

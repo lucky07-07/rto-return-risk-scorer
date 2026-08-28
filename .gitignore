@@ -1,27 +1,43 @@
-# secrets
+# secrets - never commit real keys
 .env
+.env.local
 config/razorpay_test_keys.csv
 
 # python
 __pycache__/
 *.py[cod]
+*.egg-info/
 .venv/
 venv/
+env/
 .ipynb_checkpoints/
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
 
-# data (large / regenerable) - keep external reference data & manifests
+# editor and OS noise
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+
+# generated data - regenerable by running notebooks/01_data_generation.ipynb
 data/raw/*
 data/interim/*
 data/processed/*
 !data/**/.gitkeep
 !data/external/
 !data/**/*manifest*.json
+# the validation split ships so the demo can serve real sample orders offline
+!data/processed/val.parquet
 
-# models
+# models - only the single shipped artifact is tracked
 models/*
 !models/.gitkeep
+!models/final_model.joblib
 
-# tooling
+# training and tooling byproducts
 catboost_info/
-.pytest_cache/
 *.log
+node_modules/
+.vercel/

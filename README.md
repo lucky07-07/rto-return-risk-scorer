@@ -1,408 +1,264 @@
 # Return-Risk Scorer
 
-**Razorpay AI Buildathon 2026 · Track 02 — AI Risk Manager**
+**Stops Indian online sellers losing money on cash-on-delivery orders that come back undelivered.**
 
-Predicts **Return-to-Origin (RTO) risk** for Cash-on-Delivery orders at checkout, explains
-which factors drove the score, and returns a graded action — allow, charge a COD fee, or
-disable COD.
+Razorpay AI Buildathon 2026 · Track 02, AI Risk Manager
 
-> It scores risk. It never moves money. See [Defence-only](#defence-only).
-
----
-
-## The loss class
-
-One class of loss: **COD return-to-origin**.
-
-Roughly 60–65% of Indian e-commerce orders are COD, and about **26% of them come back**
-against under 2% for prepaid. For a D2C merchant that is forward shipping, reverse
-shipping, packaging and handling burned on every failed delivery — an estimated
-₹8,000 crore a year across Indian e-commerce.
-
-## Why a scorer and not a blocker
-
-Blocking COD outright kills conversion on customers who would have paid. The model
-therefore produces **three tiers**, not a binary:
-
-| Tier | Action | Rationale |
-|---|---|---|
-| Low | Allow COD | No friction on good customers |
-| Medium | Charge a COD fee | Price the risk instead of losing the sale |
-| High | Disable COD, offer prepaid | Avoid the shipping loss entirely |
-
-Thresholds are set at the **cost minimum**, not at 0.5 and not at max-F1.
+> 🔗 **Live demo:** _deploying, URL will be added here_
+> 📄 [How it was built and tested](#for-the-technically-minded) · [What it gets wrong](#what-it-gets-wrong)
 
 ---
 
-## Data
+## The problem, in one paragraph
 
-Synthetic orders on a **real geographic skeleton**.
+About 6 in 10 online orders in India are paid cash on delivery. Roughly **1 in 4 of those
+never gets delivered**. The customer isn't home, changes their mind, or refuses at the
+door. The seller has already paid to ship it out and now pays to ship it back, plus
+packaging and handling. Nothing is collected. Across Indian e-commerce that's an estimated
+₹8,000 crore a year.
 
-| Component | Source |
+This tool looks at an order **before it ships** and answers one question. Is this one
+likely to come back?
+
+## What it does
+
+You give it an order. It gives you four things, in plain English.
+
+| | |
 |---|---|
-| Pincodes, districts, states | India Post directory — 39,736 post offices, 23,916 pincodes (real) |
-| RTO base rates | Published Indian industry statistics (see `config/evidence.yaml`) |
-| Orders, customers, addresses | Generated — seeded, reproducible |
-| RTO labels | Generated from grounded drivers |
+| **How risky** | A percentage chance this order comes back |
+| **What it costs** | The rupees you'd expect to waste shipping it |
+| **What to do** | Allow cash on delivery, add a small fee, or ask for online payment |
+| **Why** | The actual reasons, like a vague address or a customer who has returned before |
 
-**50,000 orders**, split chronologically **70 / 10 / 20** — 35,000 train, 5,000 validation,
-10,000 test.
+It only ever advises. It never blocks a customer, takes money, or contacts anyone.
 
-### Honest statement on the data
+## What it's worth
 
-> Trained and evaluated on synthetic orders built on the real India Post pincode
-> directory and calibrated against published Indian RTO statistics (enforced by test).
-> We do not claim validation on real merchant data — no such dataset is public.
-> Instead we report performance across the full 18–35% RTO range observed across Indian
-> cities, so degradation under distribution shift is measured rather than assumed.
+Tested on 10,000 orders the model had never seen.
 
-What *is* real is the calibration. The generator is constrained to reproduce published
-Indian statistics, and this is enforced as a test rather than asserted in prose:
+| | |
+|---|---|
+| **Money saved** | **₹29,481** against the best you could do with no model at all |
+| **Cost of a lazy cut-off** | **₹20,835** — what you'd waste flagging at 50% out of habit instead of at the point where money is actually minimised |
+| **Catches** | About 1 in 4 of the orders that would have come back |
+| **When it flags an order** | It's right a little under half the time |
 
-```bash
-pytest tests/test_calibration.py
-```
-
-It fails the build if any published rate drifts outside tolerance. Achieved
-(`reports/results/01_calibration.json`):
-
-| Statistic | Published | Generated |
-|---|---|---|
-| COD share of orders | 60–65% | 61.8% |
-| RTO on COD | 26% | 25.6% |
-| RTO on prepaid | <2% | 1.4% |
-| RTO, order < ₹500 | 25% | 24.8% |
-| RTO, order ₹500–1,000 | 28% | **27.7%** ← the peak |
-| RTO, order > ₹1,000 | 24% | 23.8% |
-| RTO, fashion on COD | 40%+ | 39.9% |
-
-The order-value curve is **non-monotonic**: RTO peaks in the ₹500–1,000 impulse band
-and *falls* above ₹1,000. Assuming risk rises with order value is the intuitive move,
-and the published data contradicts it — so it is asserted, not hoped for.
-
-Full provenance, schema and limitations: [`DATA_CARD.md`](DATA_CARD.md).
-
-### The difficulty ceiling
-
-The labels are Bernoulli draws from a known probability field, so the best score any
-model could achieve is computable — and is published up front:
-
-| | ROC-AUC | PR-AUC | Brier |
-|---|---|---|---|
-| Bayes ceiling | 0.869 | 0.577 | 0.097 |
-
-**A model scoring above the ceiling would be evidence of leakage, not of skill.**
+That last row matters and it's stated deliberately. This is not a tool that is right every
+time. It's a tool that, once you add up the wins and the mistakes in rupees, leaves the
+seller better off.
 
 ---
 
-## Results
+## Demo
 
-**CatBoost**, tuned by FLAML, selected on validation, at a threshold and tier cut points
-frozen before the test set was opened.
+Three real orders, scored by the live model. Switch between them in the dropdown.
 
-Five later improvement attempts were all rejected on validation, so the shipped
-configuration never changed. The test evaluation has therefore been *executed* twice and
-has *informed* one decision set — the original. `05` asserts the operating point is
-byte-identical before and after those experiments rather than asking you to take it on
-trust; `05_final_metrics.json` records both counts separately.
+**A risky order, so the tool says ask for online payment**
 
-Every number below is backed by [`reports/results/05_final_metrics.json`](reports/results/).
+![The tool showing a BLOCK decision on a high-risk fashion order](docs/screenshots/block.png)
 
-### Held-out test set — 10,000 orders, base rate 14.7%
+**A middling order, so the tool says allow cash on delivery but add a fee**
 
-| | Test | Validation |
-|---|---|---|
-| PR-AUC | **0.386** (2.62× the no-skill floor) | 0.397 |
-| ROC-AUC | 0.806 | 0.810 |
-| Brier | **0.106** | 0.109 |
-| Expected Calibration Error | **0.012** | 0.013 |
-| Precision / Recall / F1 | 0.458 / 0.269 / 0.339 | — |
+![The tool showing a REVIEW decision on a moderate-risk order](docs/screenshots/review.png)
 
-Confusion matrix at the frozen threshold (0.370): TP 396, FP 468, FN 1,077, TN 8,059.
+**A safe order, so the tool lets it through**
 
-Validation→test drift is small and in the expected direction, so the model was not
-selected on validation noise. The **Bayes ceiling** for this data is PR-AUC 0.555 — the
-model captures ~62% of achievable headroom, and a score above the ceiling would be
-treated as a leak, not a win.
+![The tool showing an ALLOW decision on a low-risk order](docs/screenshots/allow.png)
 
-### Money
+The blue box at the top of each is written by Google Gemini, which turns the raw numbers
+into something a shop owner can read. If the Gemini key is missing or its free quota is used
+up, the app writes the same summary itself and carries on working.
 
-| Policy | Cost on 10,000 test orders |
-|---|---|
-| Allow COD on everything (no model) | ₹294,600 |
-| Disable COD on everything (no model) | ₹1,330,855 |
-| Model at the default 0.5 threshold | ₹285,954 |
-| **Model at the cost minimum (shipped)** | **₹265,119** |
+## How it fits together
 
-**Using 0.5 out of habit would have cost an extra ₹20,835** on these 10,000 orders.
-Saving against the best no-model policy: ₹29,481 (₹2.95/order).
+![Architecture, from generated data through to the merchant-facing page](docs/architecture_diagram.png)
 
-The threshold is genuinely sensitive to the cost assumptions — it moves across
-**0.21–0.48** as FN cost ranges ₹150–250 and margin 15–35%. That grid is published so a
-merchant can substitute their own numbers rather than inherit ours.
-
-### Three-tier policy
-
-| Tier | Share of all orders | Actual RTO rate |
-|---|---|---|
-| Allow COD | 38% | 1.3% |
-| Charge a COD fee | 56% | 20.3% |
-| Disable COD | 6% | 47.7% |
-
-**That table needs a second one next to it, or it misleads.** The COD gate only acts on
-COD orders, and conditional on being one:
-
-| Tier | Share of **COD** orders | Actual RTO rate |
-|---|---|---|
-| Allow COD | **0%** — no COD order reaches this tier | — |
-| Charge a COD fee | **90.3%** | 20.4% |
-| Disable COD | **9.7%** | 47.7% |
-
-The allow tier is **100% prepaid** (3,811 of 3,811 test orders), and "allow COD" on an
-order that is already prepaid is a no-op. So the shipped policy does not, in practice,
-offer any COD customer frictionless COD — it offers a fee or a block. Read the first
-table alone and you would conclude 38% of customers sail through untouched; the second
-table is what actually happens.
-
-Root cause is the same soft assumption flagged below: the fee is modelled as near-free
-revenue, so the optimiser drove `low_cut` to 0.05, the bottom of its search grid, where
-only prepaid orders live. Found while building the demo, not during evaluation —
-`WHAT_BROKE.md` #19.
-
-The fee tier's size rests on the softest assumptions in the project (fee abandonment
-rate, fee level — neither has a published source). `05` says so explicitly and treats
-the two-tier threshold as the more defensible result.
-
-### Prevalence shift — 18% to 35%
-
-The centrepiece. A model can hold its ranking and still lose money, because the
-threshold stops being the cost minimum. Both are measured:
-
-| Across the published 18–35% range | |
-|---|---|
-| Minimum PR-AUC lift | **1.89×** the no-skill floor — ranking does not collapse |
-| Beats the best no-model policy at every prevalence | **yes** |
-| Worst cost regret vs an oracle threshold | ₹16.42/order at 35% |
-| Worst regret **after prior correction** | **₹0.08/order** |
-| Calibration error, untreated | 0.013 → **0.169** |
-| Calibration error, prior-corrected | **0.029** |
-
-What breaks under shift is *calibration*, not ranking — and the fix is one line of
-arithmetic ([`prior_shift_correction`](src/evaluate.py)): a merchant who knows their own
-RTO rate rescales the scores before thresholding. No retraining, no new labels.
-
-### Order-mix shift — seven merchant profiles
-
-Prevalence shift moves P(y); this moves P(x). The test set is importance-weighted to
-seven plausible merchant profiles (`05` section 10, `05_final_metrics.json`):
-
-| Profile | PR-AUC lift | Cost/order |
-|---|---|---|
-| Prepaid-led (35% COD) | 4.13× | ₹16.24 |
-| Electronics-led catalogue | 3.28× | ₹17.47 |
-| Metro-heavy D2C | 2.74× | ₹23.42 |
-| *Generated mix (baseline)* | *2.62×* | *₹26.51* |
-| Small-town heavy | 2.36× | ₹32.24 |
-| Fashion-led catalogue | 2.17× | ₹34.00 |
-| COD-dominant (85%) | 1.97× | ₹35.58 |
-
-Every profile stays well above 1.0×, so the model never becomes useless on a plausible
-reweighting. **This is a lower bound on robustness, not evidence of transfer** — it
-reweights our own synthetic population and cannot test whether P(rto | x) matches
-reality. Courier effects, seller effects, true interactions and adversarial drift remain
-untestable without real labelled data.
-
-### Improvement attempts — five challengers, none accepted
-
-Run after the baseline was established, all selected on **validation** only
-(`05` sections 2a–2e, `reports/results/05_final_metrics.json`):
-
-| Challenger | val PR-AUC | Δ vs incumbent | 95% bootstrap CI | Verdict |
-|---|---|---|---|---|
-| *incumbent — CatBoost/FLAML* | **0.3970** | — | — | **ships** |
-| Blend 0.50×LogReg + 0.50×CatBoost | 0.3982 | +0.0013 | [−0.0033, +0.0055] | tie |
-| Calibrated (isotonic) | 0.3968 | −0.0002 | [−0.0137, +0.0135] | tie |
-| Calibrated (sigmoid) | 0.3931 | −0.0039 | [−0.0174, +0.0098] | tie |
-| Logistic Regression + interactions | 0.3929 | −0.0041 | [−0.0126, +0.0038] | tie |
-| CatBoost + interactions | 0.3924 | −0.0046 | [−0.0155, +0.0075] | tie |
-
-Zero had a CI clear of zero, so the tie-breaks-to-simpler rule kept the incumbent. Two
-results are worth more than their null status:
-
-**Calibration made the rupee cost worse**, not merely neutral — ₹27.30 → ₹27.65 (sigmoid)
-and ₹27.81 (isotonic) per order on validation. The incumbent's ECE was already 0.0132, so
-there was no distortion to remove, and cross-fitting a calibrator on three time-ordered
-folds costs more precision than it buys. Shipping calibration "because it's good practice"
-would have cost money.
-
-**The interaction experiment was capped before it started.** `01` builds labels that are
-additive in log-odds, so there is no true interaction in the data to recover. That is a
-fact about our generator, not about the technique.
-
-### What we found that was not flattering
-
-- **No model beat logistic regression.** Across 11 benchmarked entries, a paired
-  bootstrap put zero models' confidence interval clear of it. Reported because
-  `PRE_REGISTRATION.md` committed to reporting it.
-- **Hyperparameter tuning made the held-out score worse** (−0.004 PR-AUC), while
-  improving the CV objective it was optimising. The tuning objective was overfitted.
-- **The model is weakest on the merchants most likely to deploy it.** A COD-dominant
-  book (85% COD) gets 1.97× lift at ₹35.58/order; a prepaid-led one gets 4.13× at
-  ₹16.24. `is_cod` is the strongest single feature, so an all-COD book removes the best
-  discriminator. Still beats every no-model policy — but plan on the bottom of the range.
-- Three engineered features are near-useless, declared weak in `02` *before* any model
-  saw them, and confirmed by SHAP in `05`.
-
-Full list, quantified by segment: section 13 of `05` and
-[`reports/results/05_exception_list.csv`](reports/results/).
+Editable source, [`docs/architecture_diagram.drawio`](docs/architecture_diagram.drawio)
 
 ---
 
-## Pipeline
+## Getting started
 
-| Notebook | Purpose |
-|---|---|
-| `01_data_generation.ipynb` | Real pincode skeleton → 50k orders → calibration check → 70/10/20 split |
-| `02_eda.ipynb` | Distributions, RTO drivers, leakage audit, preprocessing design |
-| `03_model_training.ipynb` | 10 models benchmarked against a majority baseline |
-| `04_hyperparameter_tuning.ipynb` | Two modern approaches — Optuna (multivariate TPE + Hyperband) vs FLAML (BlendSearch/CFO) |
-| `05_final_evaluation.ipynb` | Challenger experiments, test set at frozen settings, cost model, calibration, prevalence- and order-mix-shift studies |
+Everything below is a real command. Nothing to fill in except your own API key, which is
+optional.
 
-## Quickstart
+**1. Clone and enter the project**
 
 ```bash
-python -m venv .venv && .venv\Scripts\activate
-pip install -r requirements.txt
-jupyter lab
+git clone https://github.com/lucky07-07/rto-return-risk-scorer.git
+cd rto-return-risk-scorer
 ```
 
-Run the notebooks in order. `01` writes `data/processed/`; nothing downstream runs without it.
-
-## Live Demo
-
-A single-page Streamlit app that scores one order and walks the decision end to end:
-
-**risk probability → expected ₹ loss → ALLOW / REVIEW / BLOCK → reasons**
+**2. Create a virtual environment**
 
 ```bash
-streamlit run app/streamlit_app.py
+python -m venv .venv
 ```
-
-Opens on <http://localhost:8501>. **Click the dropdown at the top** — it is pre-filled
-with real orders spanning all three tiers, so you can see every outcome in under a
-minute without typing an address. Everything below updates live as you edit the form.
-
-The demo runs the **exact frozen model and thresholds from `05`** — CatBoost tuned by
-FLAML, threshold 0.370, tier cuts 0.05 / 0.40, loaded from `models/final_model.joblib`.
-Nothing is retrained, re-tuned or simplified for the demo; the page header shows the
-artifact's SHA-256 so you can check it against `/health`.
-
-The UI imports `src.serving.score_order` directly, so it needs **one process, not two**.
-The same function backs the FastAPI service if you want HTTP:
 
 ```bash
-uvicorn api.main:app --reload      # http://127.0.0.1:8000/docs
+.venv\Scripts\activate
 ```
 
-`GET /health` reports the loaded artifact and its frozen operating point,
-`GET /sample_orders` returns the pre-filled examples, `POST /score` scores one order.
+On macOS or Linux use `source .venv/bin/activate` instead.
 
-**On the sample orders:** they come from the **validation** split, not the sealed test
-set. `PRE_REGISTRATION.md` commits to the test set being read only in `05`, and
-populating a demo form is not a good enough reason to spend that. Every response says so
-in its `note` field.
-
-One thing the demo makes visible that the headline table does not: **no COD order reaches
-the ALLOW tier**. That tier is entirely prepaid, so the app flags it rather than letting
-you assume otherwise — see the three-tier section above and `WHAT_BROKE.md` #19.
+**3. Install the dependencies**
 
 ```bash
-streamlit run app/streamlit_app.py
+pip install --only-binary=:all: -r requirements.txt
 ```
 
-The UI imports the scoring function directly — **one process, no API needed**. If you
-want the HTTP service as well:
+The `--only-binary` flag matters. Without it pip tries to compile CatBoost from source and
+fails after several minutes.
+
+**4. Add a Gemini key, optional**
+
+```bash
+cp .env.example .env
+```
+
+Open `.env` and paste a free key from [Google AI Studio](https://aistudio.google.com/apikey).
+Skip this and everything still runs, you just get the built-in summaries instead of
+Gemini-written ones.
+
+**5. Run the demo**
 
 ```bash
 uvicorn api.main:app --reload
 ```
 
----
+Open <http://127.0.0.1:8000>. The page loads with a real order already filled in, so a
+decision appears immediately. Use the dropdown to switch between a safe order, a middling
+one and a risky one. Interactive API documentation is at <http://127.0.0.1:8000/docs>.
 
-## Evaluation approach
+**6. Run the tests**
 
-Three commitments, made before any model was trained — fixed in
-[`PRE_REGISTRATION.md`](PRE_REGISTRATION.md), committed and tagged `pre-registration`
-before a single model existed:
+```bash
+pytest -q
+```
 
-**Chronological split.** Train on earlier orders, test on later. A random split leaks time.
+49 tests covering data calibration, leakage guards and the API.
 
-**Out-of-fold target encoding.** Pincode historical RTO rate is the strongest feature and
-the easiest way to leak the label. It is encoded out-of-fold; `tests/test_no_leakage.py`
-guards it.
+**7. Rebuild the model from scratch, optional**
 
-**Prevalence-shift study.** Real RTO rates range from 18% (Vadodara) to 35% (Patna) across
-Indian cities. Performance is reported across that whole range rather than at one base rate,
-so degradation under distribution shift is measured instead of assumed.
+The trained model ships with the repository, so this is only needed to reproduce the whole
+pipeline. Run the notebooks in order, `01` through `05`. Notebook `01` generates the data
+everything else depends on.
 
-### Reproducibility, stated precisely
-
-`01` and `02` are **bit-reproducible** — verified by rerunning them on clean kernels and
-confirming the output JSONs are byte-identical. `01` additionally regenerates its own
-dataset in-process and asserts frame equality.
-
-`03` is **numerically deterministic but not bit-identical**: it records wall-clock fit
-times, and its tree ensembles run multi-threaded, where floating-point reduction is not
-associative. Two full reruns agreed on every metric to the printed precision — maximum
-deviation anywhere 2.2 × 10⁻¹⁶ — with identical finalists and identical bootstrap results.
-
-`04` is **not**, deliberately. It gives Optuna and FLAML an equal **wall-clock** budget,
-because equal trial counts would flatter the trial-native searcher — so trials completed
-depend on machine load. `05` loads `04`'s persisted models and inherits that. No `04`
-number is quoted as a headline here. Full table in [`WHAT_BROKE.md`](WHAT_BROKE.md) #13.
+```bash
+jupyter lab
+```
 
 ---
 
-## Defence-only
+## Project structure
 
-This system is a **scorer**. By construction it:
-
-- reads order attributes and returns a probability, reasons and a recommended tier
-- never captures, refunds, blocks or moves money
-- never contacts a customer
-- exposes no capability that could be repurposed to commit fraud
-
-The recommended action is advisory. Acting on it is the merchant's decision.
+```
+api/            Web service and the one-page demo UI
+app/            Alternative Streamlit interface, optional
+config/         Published statistics the generated data is calibrated against
+data/external/  Real India Post pincode directory, 39,736 post offices
+docs/           Architecture diagram and screenshots
+models/         The trained model plus its decision cut-offs, one file
+notebooks/      The full build, 01 to 05, run in order
+reports/        Every chart and every metric, written by the notebooks
+src/            The reusable code the notebooks and the web service both import
+tests/          Calibration, leakage and API tests
+```
 
 ---
 
-## Documents
+## What it gets wrong
 
-| | |
+Nothing here is hidden. Each limitation gets a plain-English version first.
+
+**The data is generated, not real.**
+There is no public dataset of Indian cash-on-delivery orders with return outcomes, so the
+orders were built to match published Indian statistics rather than taken from a real shop.
+The geography is real, the India Post directory of 39,736 post offices. The statistics it is
+tuned to are real and published. The orders themselves are not. **No claim is made that this
+has been validated on real merchant data.**
+
+**It helps least the sellers who need it most.**
+A seller whose orders are almost all cash on delivery gets the weakest performance, because
+the single most useful clue, whether the customer chose to pay cash, is then the same for
+every order they have. It still beats doing nothing, but such a seller should expect the
+lower end of the range.
+
+**The "allow" tier never actually fires for a cash order.**
+Every cash-on-delivery order gets either a fee or a request for online payment. Nothing is
+waved straight through. That falls out of the economics assumed for the fee, and it is
+reported rather than tidied away.
+
+**Two numbers in the cost model are guesses.**
+The fee amount, and how many customers walk away when shown a fee, have no published source.
+The main threshold does not depend on them and is solid. The three-tier split does depend on
+them and should be treated as provisional.
+
+**A simple model did just as well.**
+Plain logistic regression matched everything more sophisticated. Tuning made the model
+slightly worse on unseen orders. Both findings are reported in full rather than buried.
+
+---
+
+## For the technically minded
+
+The section above is deliberately free of jargon. The rigour is all still here.
+
+| Document | What's in it |
 |---|---|
-| [`PRE_REGISTRATION.md`](PRE_REGISTRATION.md) | Metrics, thresholds and protocol, fixed before any training |
-| [`DATA_CARD.md`](DATA_CARD.md) | What is real, what is generated, schema, limitations |
-| [`WHAT_BROKE.md`](WHAT_BROKE.md) | Running log of failures and recoveries |
-| [`ARCHITECTURE.md`](ARCHITECTURE.md) | System design and data flow |
+| [`PRE_REGISTRATION.md`](PRE_REGISTRATION.md) | Metrics, cost model and thresholds fixed **before** any model was trained, then git-tagged |
+| [`DATA_CARD.md`](DATA_CARD.md) | What is real, what is generated, the full schema, and every limitation |
+| [`ARCHITECTURE.md`](ARCHITECTURE.md) | System design, feature groups and the reproducibility contract |
+| [`WHAT_BROKE.md`](WHAT_BROKE.md) | 21 entries on what went wrong and how it was fixed, including the embarrassing ones |
 
-## Repository layout
+**Headline numbers**, all backed by files in `reports/results/`.
 
-```
-config/          evidence.yaml — published statistics with sources
-data/external/   real India Post pincode directory
-data/raw/        generated 50k orders
-data/processed/  train / val / test
-notebooks/       01 → 05, run in order
-src/             importable modules used by the notebooks
-tests/           calibration and leakage guards
-models/          persisted final model
-reports/         figures and metrics
-api/             FastAPI scoring service
-app/             Streamlit dashboard
-```
+| | Test set | Validation |
+|---|---|---|
+| PR-AUC | 0.386, which is 2.62× the no-skill floor | 0.397 |
+| ROC-AUC | 0.806 | 0.810 |
+| Brier score | 0.106 | 0.109 |
+| Expected calibration error | 0.012 | 0.013 |
+| Precision, recall, F1 | 0.458, 0.269, 0.339 | — |
+
+The Bayes ceiling for this data is a PR-AUC of 0.555, so the model captures about 62% of
+what is achievable. A score above the ceiling would be evidence of a leak rather than of
+skill, and the notebooks assert on it.
+
+**Method in brief.**
+
+- 50,000 orders split by time, 70/10/20. Never randomly, which would leak the future.
+- Generated data calibrated against published Indian statistics and enforced by test rather
+  than asserted in prose. `pytest tests/test_calibration.py` fails the build if the return
+  rates drift.
+- The order-value curve is deliberately non-monotonic. Risk peaks in the ₹500 to ₹1,000 band
+  and falls above ₹1,000, which is what the published data shows and the opposite of the
+  intuitive assumption.
+- Pincode history is target-encoded out of fold. Doing it the naive way inflates the
+  apparent score by 0.170 AUC, which notebook `02` measures rather than assumes.
+- 11 models benchmarked on identical folds, then Optuna and FLAML compared head to head on
+  an identical wall-clock budget.
+- The test set was opened once, at settings frozen on validation beforehand.
+- Performance is reported across the full 18% to 35% return range seen across Indian cities,
+  so behaviour under a shifted base rate is measured rather than assumed.
 
 ---
+
+## Defence only
+
+This system reads order details and returns a number, a recommendation and an explanation.
+
+It has no code path that captures a payment, issues a refund, blocks an account, cancels an
+order or contacts a customer. The recommendation is advice. Acting on it is the seller's
+decision. There is nothing here that could be repurposed to commit fraud.
+
+---
+
+## Licence
+
+[MIT](LICENSE)
 
 ## Author
 
-Anil Kumar · <anilkumarlucky07@gmail.com>
+Anil Kumar
