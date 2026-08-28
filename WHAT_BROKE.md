@@ -589,4 +589,90 @@ order, which is the weaker regime in the exception list.
 
 ---
 
+## 21. `high_cut` diagnostic: underdetermined, but not broken the way `low_cut` is
+
+A diagnostic pass on the two tier cut points, run on **validation only** — no retraining,
+no threshold change, no test-set access. It sharpens #19's root cause from an empirical
+observation to a proof, and separates two problems that looked like one.
+
+**Search range.** `optimise_tiers` grids both cuts over `np.arange(0.05, 0.96, 0.025)` —
+37 points, 0.05 to 0.95, with `high_cut > low_cut` enforced.
+
+### `low_cut = 0.05` is a boundary solution, and provably so
+
+It sits **on the grid floor**, and cost is **monotone** in `low_cut` — the optimiser would
+have gone lower had the grid allowed it. #19 attributed this to the fee being modelled as
+near-free revenue. That is right, and it can be stated exactly:
+
+```
+ALLOW beats FEE  iff  p·a·fn_cost  <  (1−p)·(a·fp_cost − (1−a)·cod_fee)
+```
+
+The right-hand side is **negative for 84.1% of validation orders**, which makes the
+inequality unsatisfiable at *any* probability. For those orders the FEE tier **dominates**
+the ALLOW tier outright. The allow tier only becomes reachable above an order value of
+**₹1,657**, which just 15.9% of orders exceed — and those are disproportionately prepaid.
+
+So the empty-COD allow tier is not a tuning accident. It is what the cost model *requires*,
+given a ₹50 fee assumed to be collected at an 18% abandonment rate.
+
+### `high_cut = 0.40` is an interior optimum
+
+| | `low_cut` | `high_cut` |
+|---|---|---|
+| Position in grid | index 0 of 36 — **the floor** | index 14 of 36 (38.9% along) |
+| Cost monotone in it? | **yes** — pinned by the boundary | **no** — genuine curvature |
+| Optimum away from both ends? | no | **yes** |
+
+It also agrees with theory. The cost model implies a per-order break-even of
+`p* = (fp_cost + cod_fee) / (fp_cost + cod_fee + fn_cost)`, whose **median across
+validation order values is 0.430** — close to the empirical argmin of 0.40. Two independent
+routes to nearly the same number.
+
+Note `a` (fee abandonment) cancels out of that expression entirely, which the sensitivity
+sweep confirms: the optimal `high_cut` has median 0.400 at *every* abandonment rate tested.
+
+### But its location is only weakly identified
+
+Cost per order on validation, `low_cut` held at 0.05:
+
+| `high_cut` | ₹/order | ALLOW | FEE | BLOCK | vs 0.40 (paired bootstrap) |
+|---|---|---|---|---|---|
+| 0.30 | 18.62 | 1,839 | 2,268 | 893 | — |
+| 0.35 | 16.91 | 1,839 | 2,582 | 579 | **0.40 genuinely cheaper** [+0.25, +2.21] |
+| 0.375 | 16.08 | 1,839 | 2,701 | 460 | indistinguishable [−0.30, +1.12] |
+| **0.40** | **15.69** | 1,839 | 2,820 | 341 | — (selected) |
+| 0.425 | 15.97 | 1,839 | 2,920 | 241 | indistinguishable [−0.32, +0.84] |
+| 0.45 | 15.99 | 1,839 | 2,985 | 176 | indistinguishable [−0.48, +1.06] |
+| 0.50 | 16.37 | 1,839 | 3,069 | 92 | indistinguishable [−0.19, +1.59] |
+
+**Only 0.35 is significantly worse.** Everything from 0.375 to 0.50 is inside sampling
+noise on 5,000 validation orders — moving the cut across that span reassigns just 2–5% of
+orders.
+
+Across the assumption grid (`fn_cost` 150–250, `margin_rate` 0.15–0.35, `cod_fee` 0–100,
+`fee_abandon` 0.10–0.30) the optimum ranges **0.225–0.70**; only 31% of combinations land
+exactly on 0.40, 64% within ±0.05. It moves most with `fn_cost` and `margin_rate` — both
+*grounded* with published ranges — and with `cod_fee`, which is not.
+
+### Composition, which does not change
+
+At **every** `high_cut` tested: the ALLOW tier is 1,839 orders, **100% prepaid, 0 COD**;
+BLOCK is **100% COD, 0 prepaid**; FEE holds all remaining COD plus 11 prepaid orders.
+`high_cut` is therefore a purely COD-side control — it only ever moves COD orders between
+FEE and BLOCK, and cannot rescue the empty allow tier.
+
+### Verdict
+
+`high_cut` is **underdetermined**, not suspicious. The optimisation is well-posed — interior,
+curved, and matching the analytic break-even — so it is not the structural artifact
+`low_cut` is. But the data cannot distinguish 0.40 from anything in 0.375–0.50, and the
+economics move it over 0.225–0.70. **0.40 should be read as a point in a wide plausible
+band, not a calibrated setting.**
+
+Nothing was changed. Selecting a different value would be tuning on the same validation
+data that already cannot separate the candidates.
+
+---
+
 *Open items and deviations from `PRE_REGISTRATION.md` are appended here as they occur.*
