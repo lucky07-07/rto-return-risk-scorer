@@ -128,11 +128,6 @@ uncomparable across machines — the exact failure it is supposed to prevent.
 
 ---
 
-*Open items and deviations from `PRE_REGISTRATION.md` will be appended here as they
-occur. Nothing has deviated so far.*
-
----
-
 ## 8. `order_velocity_24h` is a dead feature and we kept it anyway
 
 **Symptom.** The univariate AUC screen in `02` put `order_velocity_24h` at **0.5008** —
@@ -178,3 +173,8 @@ cell rather than typed.
 
 **Kept.** Any number in prose that is not computed in the cell that prints it is a
 number that will eventually be wrong.
+
+---
+
+*Open items and deviations from `PRE_REGISTRATION.md` are appended here as they occur.
+Nothing has deviated so far.*
