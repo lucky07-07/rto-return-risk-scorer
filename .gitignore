@@ -1,0 +1,27 @@
+# secrets
+.env
+config/razorpay_test_keys.csv
+
+# python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+.ipynb_checkpoints/
+
+# data (large / regenerable) - keep external reference data & manifests
+data/raw/*
+data/interim/*
+data/processed/*
+!data/**/.gitkeep
+!data/external/
+!data/**/*manifest*.json
+
+# models
+models/*
+!models/.gitkeep
+
+# tooling
+catboost_info/
+.pytest_cache/
+*.log

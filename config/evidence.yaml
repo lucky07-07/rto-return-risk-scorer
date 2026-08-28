@@ -1,0 +1,45 @@
+# Published statistics used to ground the synthetic generator.
+# Every constant here MUST carry a source. Anything without one is marked assumed
+# and must be sensitivity-tested in 05_final_evaluation.
+
+cod_share:
+  value: 0.62
+  status: grounded
+  source: "Industry reports: 60-65% of Indian e-commerce orders are COD"
+
+cod_rto_rate:
+  value: 0.26
+  status: grounded
+  source: "Shipway ShipNotes FY25 - 26% RTO on COD/non-prepaid orders"
+
+prepaid_rto_rate:
+  value: 0.02
+  status: grounded
+  source: "Shipway ShipNotes FY25 - <2% RTO on prepaid orders"
+
+order_value_bands:            # NOTE: non-monotonic - peaks in the middle band
+  under_500:     {value: 0.25, source: "ShipNotes FY25 category/value breakdown"}
+  mid_500_1000:  {value: 0.28, source: "ShipNotes FY25 - the 'impulse zone'"}
+  over_1000:     {value: 0.24, source: "ShipNotes FY25 - more considered purchases"}
+
+city_rto_range:
+  min: {city: "Vadodara", value: 0.18, source: "ShipNotes FY25 city-wise"}
+  max: {city: "Patna",    value: 0.35, source: "ShipNotes FY25 city-wise"}
+
+category_multipliers:
+  fashion: {value: 1.55, status: grounded, source: "Fashion/apparel RTO reported 40%+"}
+  other:   {value: 1.00, status: assumed}
+
+cost_model:
+  fn_cost_inr:
+    value: 200
+    status: assumed
+    note: "Forward + reverse shipping + packaging + handling. Range 150-250. Sensitivity-test."
+  fp_cost_inr:
+    value: null
+    status: derived
+    note: "Lost margin on a good order that was blocked. Computed per order value."
+
+industry_context:
+  annual_rto_loss_inr_cr: {value: 8000, source: "Industry estimate, Indian e-commerce"}
+  rbi_fraud_fy26_inr_cr:  {value: 48021, source: "RBI Annual Report FY26 (+46.4% YoY)"}
