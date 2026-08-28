@@ -262,3 +262,27 @@ decision. There is nothing here that could be repurposed to commit fraud.
 ## Author
 
 Anil Kumar
+
+---
+
+## Deploying it yourself
+
+The demo runs as one container, the API and the page together on a single URL.
+
+```bash
+huggingface-cli login
+```
+
+Use a token with **write** access. A read-only token cannot create a Space.
+
+```bash
+python deploy/publish_space.py
+```
+
+That uploads only what the service needs, about 3.4 MB, and Hugging Face builds the
+container from `deploy/Dockerfile`. Set `GEMINI_API_KEY` as a **secret** in the Space
+settings so the plain-English summaries use Gemini. Without it the app falls back to its
+built-in summaries and still works.
+
+`deploy/requirements-serve.txt` is deliberately smaller than `requirements.txt`. The
+container has no need for Jupyter, Optuna, FLAML, Streamlit or matplotlib.
