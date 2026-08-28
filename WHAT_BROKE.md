@@ -290,7 +290,40 @@ are fixed and the qualitative conclusions are stable across reruns (both strateg
 in the same region; CV gain does not transfer). Exact trial counts and third decimals are
 not stable, and **no `04` number is quoted as a headline in the README.**
 
-Notebooks `01`, `02`, `03` and `05` remain bit-reproducible.
+**Precisely what is and is not reproducible**, since the distinction matters:
+
+| Notebook | Status | Verified how |
+|---|---|---|
+| `01` | **bit-reproducible** | full rerun leaves `01_manifest.json` byte-identical; the notebook also regenerates the dataset in-process and asserts frame equality |
+| `02` | **bit-reproducible** | full rerun leaves `02_eda_summary.json` byte-identical |
+| `03` | **numerically deterministic, not bit-identical** | see below |
+| `04` | **not reproducible** | wall-clock budget, by design |
+| `05` | deterministic **given `04`'s persisted artefacts** — not from scratch | it loads `models/04_*.joblib`, so it inherits `04`'s irreproducibility upstream |
+
+**On `03`, a correction to an earlier claim in this file.** It was first written down here
+as "bit-reproducible" on the assumption that fixed seeds were sufficient. They are not,
+and a rerun proved it. Two causes:
+
+1. The persisted outputs record **wall-clock fit times** (`fit_seconds`, `cv_seconds`),
+   which obviously vary.
+2. The tree ensembles run with `n_jobs=-1`, and **multi-threaded floating-point reduction
+   is not associative** — partial sums combine in whatever order threads finish.
+
+Measured drift across two full reruns: every leaderboard metric identical to the printed
+precision, maximum deviation anywhere **2.2 × 10⁻¹⁶** in the validation predictions and
+**2.8 × 10⁻¹⁷** in the class-weight experiment. Finalist selection, the bootstrap
+comparison and the Bayes-ceiling check were identical. So the *conclusions* are stable to
+machine epsilon; the *files* are not byte-identical, and the honest word is
+"deterministic", not "bit-reproducible".
+
+Forcing bit-identity would mean `n_jobs=1` throughout — several times the runtime for a
+difference in the sixteenth decimal place. Not worth it, but worth stating rather than
+claiming a reproducibility standard the repository does not actually meet.
+
+So the chain from a clean checkout to `05`'s exact test numbers is **not** bit-reproducible,
+and saying "everything is reproducible except `04`" would have been too generous. What
+survives a rerun is the model family selected, the operating point to within the grid
+resolution, and every qualitative conclusion.
 
 ---
 

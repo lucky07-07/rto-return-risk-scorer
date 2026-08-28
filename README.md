@@ -226,6 +226,22 @@ guards it.
 Indian cities. Performance is reported across that whole range rather than at one base rate,
 so degradation under distribution shift is measured instead of assumed.
 
+### Reproducibility, stated precisely
+
+`01` and `02` are **bit-reproducible** — verified by rerunning them on clean kernels and
+confirming the output JSONs are byte-identical. `01` additionally regenerates its own
+dataset in-process and asserts frame equality.
+
+`03` is **numerically deterministic but not bit-identical**: it records wall-clock fit
+times, and its tree ensembles run multi-threaded, where floating-point reduction is not
+associative. Two full reruns agreed on every metric to the printed precision — maximum
+deviation anywhere 2.2 × 10⁻¹⁶ — with identical finalists and identical bootstrap results.
+
+`04` is **not**, deliberately. It gives Optuna and FLAML an equal **wall-clock** budget,
+because equal trial counts would flatter the trial-native searcher — so trials completed
+depend on machine load. `05` loads `04`'s persisted models and inherits that. No `04`
+number is quoted as a headline here. Full table in [`WHAT_BROKE.md`](WHAT_BROKE.md) #13.
+
 ---
 
 ## Defence-only

@@ -30,8 +30,8 @@
       "cv_pr_auc_std": 0.03718467065480767,
       "cv_roc_auc_mean": 0.8006870387773617,
       "cv_brier_mean": 0.11757178961470312,
-      "fit_seconds": 4.344866752624512,
-      "cv_seconds": 9.547392129898071
+      "fit_seconds": 5.21376633644104,
+      "cv_seconds": 11.55418586730957
     },
     {
       "key": "01_logistic",
@@ -47,8 +47,8 @@
       "cv_pr_auc_std": 0.03571486298003215,
       "cv_roc_auc_mean": 0.8044731923879356,
       "cv_brier_mean": 0.11584505763905768,
-      "fit_seconds": 0.5240228176116943,
-      "cv_seconds": 1.3932156562805176
+      "fit_seconds": 0.600907564163208,
+      "cv_seconds": 1.643277645111084
     },
     {
       "key": "09_catboost",
@@ -64,8 +64,8 @@
       "cv_pr_auc_std": 0.03204592234171957,
       "cv_roc_auc_mean": 0.7975780542524733,
       "cv_brier_mean": 0.11769177088246696,
-      "fit_seconds": 6.182125091552734,
-      "cv_seconds": 23.546135902404785
+      "fit_seconds": 6.572218179702759,
+      "cv_seconds": 24.758488655090332
     },
     {
       "key": "03_random_forest",
@@ -81,8 +81,8 @@
       "cv_pr_auc_std": 0.04020231992788668,
       "cv_roc_auc_mean": 0.7997239352392483,
       "cv_brier_mean": 0.11799294152040703,
-      "fit_seconds": 5.4590840339660645,
-      "cv_seconds": 13.252697229385376
+      "fit_seconds": 6.109324216842651,
+      "cv_seconds": 15.43063235282898
     },
     {
       "key": "05_gradient_boosting",
@@ -98,8 +98,8 @@
       "cv_pr_auc_std": 0.03541708291554542,
       "cv_roc_auc_mean": 0.7988933695883834,
       "cv_brier_mean": 0.11777355560549582,
-      "fit_seconds": 26.30173945426941,
-      "cv_seconds": 62.084041595458984
+      "fit_seconds": 30.16323471069336,
+      "cv_seconds": 68.89787197113037
     },
     {
       "key": "10_mlp",
@@ -115,8 +115,8 @@
       "cv_pr_auc_std": 0.035508814792039954,
       "cv_roc_auc_mean": 0.7883795023447328,
       "cv_brier_mean": 0.11949390649036232,
-      "fit_seconds": 4.387416839599609,
-      "cv_seconds": 9.126561880111694
+      "fit_seconds": 4.774264574050903,
+      "cv_seconds": 9.964090347290039
     },
     {
       "key": "07_xgboost",
@@ -132,8 +132,8 @@
       "cv_pr_auc_std": 0.039061203059808,
       "cv_roc_auc_mean": 0.791455175567941,
       "cv_brier_mean": 0.12010927076005476,
-      "fit_seconds": 2.0964818000793457,
-      "cv_seconds": 7.741513729095459
+      "fit_seconds": 2.210850954055786,
+      "cv_seconds": 8.577547788619995
     },
     {
       "key": "08_lightgbm",
@@ -149,8 +149,8 @@
       "cv_pr_auc_std": 0.04684281511491923,
       "cv_roc_auc_mean": 0.785769637868612,
       "cv_brier_mean": 0.12228475768306075,
-      "fit_seconds": 1.6611878871917725,
-      "cv_seconds": 5.829730987548828
+      "fit_seconds": 1.678727626800537,
+      "cv_seconds": 6.690986394882202
     },
     {
       "key": "02_decision_tree",
@@ -166,8 +166,8 @@
       "cv_pr_auc_std": 0.037225544078189336,
       "cv_roc_auc_mean": 0.7897723010786747,
       "cv_brier_mean": 0.11983609998925875,
-      "fit_seconds": 0.546875,
-      "cv_seconds": 1.5454566478729248
+      "fit_seconds": 0.6648809909820557,
+      "cv_seconds": 1.8737964630126953
     },
     {
       "key": "06_hist_gradient_boosting",
@@ -183,8 +183,8 @@
       "cv_pr_auc_std": 0.03997627120990441,
       "cv_roc_auc_mean": 0.7881105746145716,
       "cv_brier_mean": 0.12145602855290116,
-      "fit_seconds": 2.7988314628601074,
-      "cv_seconds": 9.83174467086792
+      "fit_seconds": 3.135615587234497,
+      "cv_seconds": 11.216142892837524
     },
     {
       "key": "00_dummy",
@@ -200,8 +200,8 @@
       "cv_pr_auc_std": 0.025652416425515967,
       "cv_roc_auc_mean": 0.5,
       "cv_brier_mean": 0.14012595550381152,
-      "fit_seconds": 0.30170297622680664,
-      "cv_seconds": 0.9888162612915039
+      "fit_seconds": 0.3945608139038086,
+      "cv_seconds": 1.3414673805236816
     }
   ],
   "bootstrap_vs_logistic": [
@@ -323,7 +323,7 @@
       "model": "Random Forest",
       "variant": "class_weight='balanced'",
       "val_pr_auc": 0.38928789406707953,
-      "val_brier": 0.1532688515936584,
+      "val_brier": 0.15326885159365838,
       "mean_predicted_p": 0.3484155484963965,
       "actual_base_rate": 0.155
     }

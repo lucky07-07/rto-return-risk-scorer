@@ -130,3 +130,18 @@ repurposed to commit fraud.
 * SHA-256 of every output file lands in `reports/results/*_manifest.json`, keyed by
   repo-relative path so two checkouts produce comparable manifests.
 * No metric appears in the README that is not backed by a file in `reports/results/`.
+
+**Exceptions, stated rather than buried.**
+
+`01` and `02` are bit-reproducible, verified by rerun.
+
+`03` is numerically deterministic but **not** bit-identical — it records wall-clock fit
+times, and multi-threaded floating-point reduction in the tree ensembles is not
+associative. Two reruns agreed to within 2.2 × 10⁻¹⁶ on every metric.
+
+`04` is **not** reproducible, and cannot be while the comparison it makes is fair: Optuna
+is trial-native and FLAML is budget-native, so the two are given an equal **wall-clock**
+budget, and trials completed therefore depend on machine load. `05` loads `04`'s persisted
+models, so it inherits that upstream.
+
+See [`WHAT_BROKE.md`](WHAT_BROKE.md) #13 for the full table and the measured deviations.
