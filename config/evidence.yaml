@@ -44,11 +44,34 @@ cost_model:
   fn_cost_inr:
     value: 200
     status: assumed
-    note: "Forward + reverse shipping + packaging + handling. Range 150-250. Sensitivity-test."
+    range: [150, 250]
+    note: "Forward + reverse shipping + packaging + handling. Sensitivity-tested in 05."
   fp_cost_inr:
     value: null
     status: derived
-    note: "Lost margin on a good order that was blocked. Computed per order value."
+    note: >
+      Lost margin on a good order we discouraged. NOT the order value, and not even
+      the full margin: a customer told COD is unavailable mostly pays online instead.
+      Computed per order as
+      order_value * margin_rate * (1 - prepaid_conversion).
+  margin_rate:
+    value: 0.25
+    status: assumed
+    range: [0.15, 0.35]
+    note: "D2C contribution margin as a share of order value. Sensitivity-tested in 05."
+  prepaid_conversion:
+    value: 0.45
+    status: assumed
+    range: [0.25, 0.65]
+    note: "Share of blocked-but-good customers who switch to prepaid rather than abandon."
+  cod_fee_inr:
+    value: 50
+    status: assumed
+    note: "Middle-tier fee. Prices the risk instead of losing the sale."
+  fee_abandon_rate:
+    value: 0.18
+    status: assumed
+    note: "Share of fee-tier orders that do not proceed once a COD fee is shown."
 
 industry_context:
   annual_rto_loss_inr_cr: {value: 8000, source: "Industry estimate, Indian e-commerce"}

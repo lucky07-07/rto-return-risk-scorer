@@ -204,3 +204,258 @@ def paired_bootstrap_delta(
         "p_two_sided": float(2 * min(np.nanmean(deltas > 0), np.nanmean(deltas < 0))),
         "significant": bool(lo > 0 or hi < 0),
     }
+
+
+# ---------------------------------------------------------------------------
+# Prevalence shift
+# ---------------------------------------------------------------------------
+
+
+def resample_to_prevalence(y_true, target_rate: float, seed: int = 20260101):
+    """Row indices of a subsample whose positive rate is ``target_rate``.
+
+    Published Indian city RTO rates span 18% to 35%. A model selected and
+    thresholded at one base rate can degrade badly at another, and a cost-optimal
+    threshold can invert. To measure that rather than assume it, the evaluation
+    set is resampled to each target prevalence.
+
+    Only *subsampling* is used -- one class is thinned, never duplicated or
+    synthesised -- so every scored row is a real row with a real prediction. The
+    price is a smaller n at the extremes, which is why the study reports n and a
+    bootstrap band alongside every point.
+    """
+    y = np.asarray(y_true).astype(int)
+    rng = np.random.default_rng(seed)
+    pos = np.flatnonzero(y == 1)
+    neg = np.flatnonzero(y == 0)
+    if not 0 < target_rate < 1 or len(pos) == 0 or len(neg) == 0:
+        raise ValueError("target_rate must be in (0, 1) and both classes present")
+
+    # Keep whichever class does not need thinning, and thin the other.
+    n_pos_if_all_neg = int(round(len(neg) * target_rate / (1 - target_rate)))
+    if n_pos_if_all_neg <= len(pos):
+        keep_pos = rng.choice(pos, size=max(n_pos_if_all_neg, 1), replace=False)
+        keep_neg = neg
+    else:
+        n_neg = int(round(len(pos) * (1 - target_rate) / target_rate))
+        keep_pos = pos
+        keep_neg = rng.choice(neg, size=max(min(n_neg, len(neg)), 1), replace=False)
+
+    idx = np.sort(np.concatenate([keep_pos, keep_neg]))
+    return idx
+
+
+def prevalence_curve(y_true, y_prob, rates, seed: int = 20260101,
+                     n_boot: int = 200) -> pd.DataFrame:
+    """Metrics across a range of base rates, with bootstrap bands.
+
+    PR-AUC moves with prevalence *by definition* -- the no-skill PR-AUC equals the
+    base rate -- so the honest thing to report next to it is ``pr_auc_lift``, the
+    ratio of PR-AUC to that no-skill floor. A model whose lift falls towards 1.0
+    has stopped being useful even if its raw PR-AUC is rising.
+    """
+    y_true = np.asarray(y_true).astype(int)
+    y_prob = np.asarray(y_prob, dtype=float)
+    rows = []
+    for r in rates:
+        idx = resample_to_prevalence(y_true, r, seed=seed)
+        ys, ps = y_true[idx], y_prob[idx]
+        m = classification_metrics(ys, ps)
+
+        rng = np.random.default_rng(seed)
+        boots = []
+        for _ in range(n_boot):
+            b = rng.integers(0, len(ys), len(ys))
+            if len(np.unique(ys[b])) < 2:
+                continue
+            boots.append(average_precision_score(ys[b], ps[b]))
+        lo, hi = (np.percentile(boots, [2.5, 97.5]) if boots else (np.nan, np.nan))
+
+        rows.append({
+            "target_prevalence": r,
+            "actual_prevalence": float(ys.mean()),
+            "n": int(len(ys)),
+            **m,
+            "pr_auc_lo": float(lo), "pr_auc_hi": float(hi),
+            # PR-AUC's no-skill floor IS the base rate, so raw PR-AUC is not
+            # comparable across prevalences. Lift is.
+            "pr_auc_lift": float(m["pr_auc"] / ys.mean()),
+        })
+    return pd.DataFrame(rows)
+
+
+# ---------------------------------------------------------------------------
+# Calibration
+# ---------------------------------------------------------------------------
+
+
+def reliability_curve(y_true, y_prob, n_bins: int = 10, strategy: str = "quantile"):
+    """Observed frequency against predicted probability, per bin.
+
+    Quantile bins by default rather than equal-width: with a 15% base rate most
+    predictions crowd into the low end, and equal-width bins would report nine
+    nearly empty buckets and one that hides everything interesting.
+
+    Brier score answers "are the probabilities good?" with one number. This
+    answers "and where are they wrong?", which is what a cost-based threshold
+    actually needs -- systematic overconfidence near the operating point costs
+    money in a way that a decent aggregate Brier can conceal.
+    """
+    y_true = np.asarray(y_true).astype(int)
+    y_prob = np.asarray(y_prob, dtype=float)
+
+    if strategy == "quantile":
+        edges = np.unique(np.quantile(y_prob, np.linspace(0, 1, n_bins + 1)))
+    else:
+        edges = np.linspace(0, 1, n_bins + 1)
+    idx = np.clip(np.digitize(y_prob, edges[1:-1], right=False), 0, len(edges) - 2)
+
+    rows = []
+    for b in range(len(edges) - 1):
+        m = idx == b
+        if not m.any():
+            continue
+        k, n = int(y_true[m].sum()), int(m.sum())
+        lo, hi = wilson_ci(k, n)
+        rows.append({
+            "bin": b, "n": n,
+            "mean_predicted": float(y_prob[m].mean()),
+            "observed_rate": k / n,
+            "ci_lo": float(lo), "ci_hi": float(hi),
+            "gap": float(y_prob[m].mean() - k / n),
+        })
+    curve = pd.DataFrame(rows)
+    # Expected Calibration Error: mean |predicted - observed|, weighted by bin size.
+    ece = float((curve.n * curve.gap.abs()).sum() / curve.n.sum()) if len(curve) else np.nan
+    return curve, ece
+
+
+# ---------------------------------------------------------------------------
+# Human-readable risk reasons
+# ---------------------------------------------------------------------------
+
+# Plain-English templates. A merchant-facing reason has to say what about the
+# order is risky, not name a column.
+REASON_TEMPLATES = {
+    "pincode_te": ("this pincode returns COD orders more often than average",
+                   "this pincode has a below-average return rate"),
+    "city_te": ("this city returns COD orders more often than average",
+                "this city has a below-average return rate"),
+    "pincode_prefix3_te": ("this delivery region returns orders more often than average",
+                           "this delivery region is lower risk than average"),
+    "is_cod": ("paying cash on delivery", "paying online up front"),
+    "past_rto_rate": ("this customer has returned orders before",
+                      "this customer's past orders were delivered"),
+    "past_rto_count": ("this customer has prior returns on record",
+                       "this customer has no prior returns"),
+    "has_history": ("no prior order history to judge from",
+                    "an established order history"),
+    "is_first_order": ("this is the customer's first order",
+                       "a returning customer"),
+    "addr_quality_score": ("the delivery address looks incomplete",
+                           "the delivery address is detailed"),
+    "addr_has_house_number": ("no house or flat number in the address",
+                              "a house number is present"),
+    "addr_has_landmark": ("no landmark given to help the courier",
+                          "a landmark is given"),
+    "addr_gibberish_score": ("the address contains unreadable text",
+                             "the address text is clean"),
+    "addr_token_count": ("the address is unusually short",
+                         "the address is detailed"),
+    "delivery_days_est": ("a long courier ETA", "a short courier ETA"),
+    "tier_ordinal": ("delivery outside the metros", "delivery into a metro"),
+    "order_value": ("the basket value", "the basket value"),
+    "log_order_value": ("the basket value", "the basket value"),
+    "discount_pct": ("a heavy discount on this order", "little or no discount"),
+    "discount_amount": ("a large discount on this order", "little or no discount"),
+    "order_velocity_24h": ("several orders from this customer in 24 hours",
+                           "normal ordering pace"),
+    "account_age_days": ("a new account", "a long-standing account"),
+    "log_account_age": ("a new account", "a long-standing account"),
+    "is_festive": ("ordered during a festive sale", "ordered outside a sale period"),
+    "is_alternate_address": ("shipping to a non-default address",
+                             "shipping to the usual address"),
+}
+
+
+def risk_reasons(shap_row, feature_names, top_k: int = 3) -> list[str]:
+    """Turn one order's SHAP values into sentences a merchant can act on.
+
+    Only reasons that push the score UP are returned: a risk explanation that
+    leads with mitigating factors is not an explanation, it is a hedge.
+    """
+    vals = np.asarray(shap_row, dtype=float)
+    order = np.argsort(-vals)
+    out = []
+    for i in order[:top_k]:
+        if vals[i] <= 0:
+            break
+        name = feature_names[i]
+        base = name.split("_", 1)[-1] if name.startswith(("cat_", "num_")) else name
+        tpl = REASON_TEMPLATES.get(base)
+        if tpl is None:
+            if base.startswith("category_"):
+                tpl = (f"{base.removeprefix('category_')} is a high-return category",) * 2
+            elif base.startswith("state_") or base.startswith("pincode_tier_"):
+                tpl = ("the delivery location",) * 2
+            else:
+                tpl = (base.replace("_", " "),) * 2
+        out.append(tpl[0])
+    return out
+
+
+def prior_shift_correction(y_prob, source_rate: float, target_rate: float):
+    """Rescale probabilities from one base rate to another.
+
+    A model trained where 17% of orders return is *miscalibrated* by construction
+    in a city where 35% do -- the ranking survives, the probabilities do not, and
+    a rupee-cost threshold reads probabilities. Under the standard label-shift
+    assumption (P(x|y) unchanged, P(y) changed) the fix is an odds adjustment:
+
+        odds' = odds x [target / (1 - target)] / [source / (1 - source)]
+
+    This is one line and it is the difference between a model that degrades
+    gracefully across the published 18-35% range and one that quietly overcharges
+    good customers in Patna or under-flags returns in Vadodara.
+    """
+    p = np.clip(np.asarray(y_prob, dtype=float), 1e-9, 1 - 1e-9)
+    ratio = (target_rate / (1 - target_rate)) / (source_rate / (1 - source_rate))
+    odds = p / (1 - p) * ratio
+    return odds / (1 + odds)
+
+
+def segment_report(df: pd.DataFrame, y_true, y_prob, threshold: float,
+                   segments: dict, min_n: int = 100) -> pd.DataFrame:
+    """Per-segment performance, for the honest exception list.
+
+    An aggregate metric is an average over populations the model treats very
+    differently. This is where the model is asked to account for itself on the
+    slices it finds hardest.
+    """
+    y_true = np.asarray(y_true).astype(int)
+    y_prob = np.asarray(y_prob, dtype=float)
+    flagged = y_prob >= threshold
+
+    rows = []
+    for name, mask in segments.items():
+        m = np.asarray(mask)
+        n = int(m.sum())
+        if n < min_n or len(np.unique(y_true[m])) < 2:
+            rows.append({"segment": name, "n": n, "note": "too small or single-class"})
+            continue
+        ys, ps, fs = y_true[m], y_prob[m], flagged[m]
+        tp = int((fs & (ys == 1)).sum())
+        rows.append({
+            "segment": name,
+            "n": n,
+            "base_rate": float(ys.mean()),
+            "pr_auc": float(average_precision_score(ys, ps)),
+            "pr_auc_lift": float(average_precision_score(ys, ps) / ys.mean()),
+            "roc_auc": float(roc_auc_score(ys, ps)),
+            "brier": float(brier_score_loss(ys, ps)),
+            "precision": tp / max(int(fs.sum()), 1),
+            "recall": tp / max(int((ys == 1).sum()), 1),
+            "flag_rate": float(fs.mean()),
+            "mean_pred_vs_actual": float(ps.mean() - ys.mean()),
+        })
+    return pd.DataFrame(rows)
