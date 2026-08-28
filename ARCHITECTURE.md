@@ -131,6 +131,9 @@ repurposed to commit fraud.
 * SHA-256 of every output file lands in `reports/results/*_manifest.json`, keyed by
   repo-relative path so two checkouts produce comparable manifests.
 * No metric appears in the README that is not backed by a file in `reports/results/`.
+* The test set is evaluated only at settings frozen on validation. `05` asserts that
+  the challenger experiments left that operating point unchanged, and
+  `05_final_metrics.json` separates *evaluations executed* from *decisions informed*.
 
 **Exceptions, stated rather than buried.**
 

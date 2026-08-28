@@ -451,9 +451,21 @@ decision-informed read of the test set — exactly what `PRE_REGISTRATION.md` bo
 credibility from avoiding.
 
 **What actually happened.** No challenger was accepted, so the model, threshold and tier
-cut points are unchanged, and the test cell re-executes an identical computation. Verified:
-`05_final_metrics.json`'s entire `test` block compares **equal** to the previously
-committed version.
+cut points are unchanged, and the test cell re-executes an identical computation.
+
+Verified two ways, one of them repeatable:
+
+* `05` section 14 snapshots the operating point *before* the challengers run and
+  **asserts** it is unchanged afterwards. If anything below section 2a ever mutates it,
+  the notebook fails rather than printing a reassuring sentence.
+* Manually, once: `05_final_metrics.json`'s entire `test` block compared **equal** to the
+  previously committed version.
+
+`05_final_metrics.json` therefore records `test_evaluations_executed: 2` and
+`test_informed_decisions: 1` as separate fields. An earlier draft of that file carried a
+single `test_reads: 2` with a note calling this "the second read" — written before the
+outcome was known, and left standing it would have contradicted this entry in the one file
+a reader is most likely to grep. Caught on an audit pass, not by the tests.
 
 **So the test set informed no decision.** The protocol holds — not because we were careful
 afterwards, but because the validation-only rule produced a null result and there was

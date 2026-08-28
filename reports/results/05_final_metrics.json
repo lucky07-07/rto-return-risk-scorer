@@ -235,8 +235,11 @@
       }
     ],
     "blend_best_weight": 0.5,
-    "test_reads": 2,
-    "note": "Baseline was scored on test before these experiments existed; this is the second read of the test set. See WHAT_BROKE.md."
+    "test_evaluations_executed": 2,
+    "test_informed_decisions": 1,
+    "model_changed_by_challengers": false,
+    "operating_point_unchanged": true,
+    "note": "The challenger experiments were added after the baseline had been scored on test. No challenger was accepted, so the model, threshold and tier cuts are unchanged and section 3 re-executes an identical computation: the test evaluation ran twice but informed one decision set, the original. See WHAT_BROKE.md #17."
   },
   "population_shift": [
     {

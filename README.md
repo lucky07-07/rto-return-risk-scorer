@@ -97,8 +97,14 @@ model could achieve is computable — and is published up front:
 
 ## Results
 
-**CatBoost**, tuned by FLAML, selected on validation. Test set opened **once**, at a
-threshold and tier cut points frozen before it was opened.
+**CatBoost**, tuned by FLAML, selected on validation, at a threshold and tier cut points
+frozen before the test set was opened.
+
+Five later improvement attempts were all rejected on validation, so the shipped
+configuration never changed. The test evaluation has therefore been *executed* twice and
+has *informed* one decision set — the original. `05` asserts the operating point is
+byte-identical before and after those experiments rather than asking you to take it on
+trust; `05_final_metrics.json` records both counts separately.
 
 Every number below is backed by [`reports/results/05_final_metrics.json`](reports/results/).
 
@@ -240,7 +246,7 @@ Full list, quantified by segment: section 13 of `05` and
 | `02_eda.ipynb` | Distributions, RTO drivers, leakage audit, preprocessing design |
 | `03_model_training.ipynb` | 10 models benchmarked against a majority baseline |
 | `04_hyperparameter_tuning.ipynb` | Two modern approaches — Optuna (multivariate TPE + Hyperband) vs FLAML (BlendSearch/CFO) |
-| `05_final_evaluation.ipynb` | Test set opened once, cost model, calibration, prevalence-shift study |
+| `05_final_evaluation.ipynb` | Challenger experiments, test set at frozen settings, cost model, calibration, prevalence- and order-mix-shift studies |
 
 ## Quickstart
 
