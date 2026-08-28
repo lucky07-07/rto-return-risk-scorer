@@ -1,0 +1,133 @@
+{
+  "final_model": {
+    "key": "09_catboost__flaml",
+    "label": "CatBoost",
+    "strategy": "FLAML",
+    "source": "tuned"
+  },
+  "frozen_operating_point": {
+    "model_key": "09_catboost__flaml",
+    "threshold": 0.37,
+    "low_cut": 0.05,
+    "high_cut": 0.4
+  },
+  "selected_on": "validation only",
+  "test": {
+    "n": 10000,
+    "base_rate": 0.1473,
+    "pr_auc": 0.38583614893692886,
+    "roc_auc": 0.8060109531076199,
+    "brier": 0.10586744736326541,
+    "log_loss": 0.33595086378350514,
+    "ece": 0.011751877880299367,
+    "precision": 0.4583333333333333,
+    "recall": 0.26883910386965376,
+    "f1": 0.33889602053915274,
+    "flag_rate": 0.0864,
+    "confusion_matrix": {
+      "tn": 8059,
+      "fp": 468,
+      "fn": 1077,
+      "tp": 396
+    },
+    "pr_auc_lift": 2.6193900131495513
+  },
+  "validation": {
+    "pr_auc": 0.3969942293994124,
+    "roc_auc": 0.8098195838900555,
+    "brier": 0.10917964117658517,
+    "ece": 0.01316549023809653
+  },
+  "cost": {
+    "params": {
+      "fn_cost_inr": 200.0,
+      "margin_rate": 0.25,
+      "prepaid_conversion": 0.45,
+      "cod_fee_inr": 50.0,
+      "fee_abandon_rate": 0.18
+    },
+    "total_at_frozen_threshold_inr": 265119.175,
+    "total_at_0.5_threshold_inr": 285954.225,
+    "cost_of_using_default_threshold_inr": 20835.04999999999,
+    "no_model_baselines_inr": {
+      "allow_everything": 294600.0,
+      "block_everything": 1330855.2125000001
+    },
+    "saving_vs_best_no_model_inr": 29480.82500000001,
+    "cost_per_order_inr": 26.5119175,
+    "three_tier": {
+      "low_cut": 0.05,
+      "high_cut": 0.4,
+      "total_cost_inr": 150105.59475000002,
+      "cost_per_order_inr": 15.010559475000003,
+      "n_allow_cod": 3811,
+      "rto_rate_allow_cod": 0.01338231435318814,
+      "n_charge_cod_fee": 5594,
+      "rto_rate_charge_cod_fee": 0.20343224883804076,
+      "n_disable_cod": 595,
+      "rto_rate_disable_cod": 0.4773109243697479
+    },
+    "sensitivity_threshold_range": [
+      0.21,
+      0.48
+    ]
+  },
+  "three_tier_policy": [
+    {
+      "tier": "allow_cod",
+      "action": "allow COD",
+      "score_range": "< 0.050",
+      "n_orders": 3811,
+      "share": 0.3811,
+      "actual_rto_rate": 0.01338231435318814,
+      "mean_order_value": 1407.9016006297559,
+      "lift_vs_base": 0.09085074238416932
+    },
+    {
+      "tier": "charge_cod_fee",
+      "action": "charge a COD fee",
+      "score_range": "0.050 - 0.400",
+      "n_orders": 5594,
+      "share": 0.5594,
+      "actual_rto_rate": 0.20343224883804076,
+      "mean_order_value": 912.9081158383983,
+      "lift_vs_base": 1.381074330197154
+    },
+    {
+      "tier": "disable_cod",
+      "action": "disable COD, offer prepaid",
+      "score_range": ">= 0.400",
+      "n_orders": 595,
+      "share": 0.0595,
+      "actual_rto_rate": 0.4773109243697479,
+      "mean_order_value": 784.7932773109244,
+      "lift_vs_base": 3.2404000296656346
+    }
+  ],
+  "prevalence_shift": {
+    "range_tested": [
+      0.14,
+      0.4
+    ],
+    "published_range": [
+      0.18,
+      0.35
+    ],
+    "min_pr_auc_lift_in_published_range": 1.8882333603608354,
+    "beats_no_model_everywhere_in_range": true,
+    "worst_regret_inr_per_order": 16.41603706343549,
+    "worst_regret_at_prevalence": 0.35,
+    "worst_regret_with_prior_correction_inr": 0.0772789919275425,
+    "ece_untreated_max": 0.16856189640350874,
+    "ece_corrected_max": 0.028777613023138283
+  },
+  "bayes_ceiling_val": {
+    "pr_auc": 0.5547817270393051,
+    "roc_auc": 0.868011452567284,
+    "brier": 0.09401952876799757,
+    "log_loss": 0.30037419974810425,
+    "mean_pred": 0.15795125094862025,
+    "base_rate": 0.155
+  },
+  "data_claim": "Trained and evaluated on synthetic orders built on the real India Post pincode directory and calibrated against published Indian RTO statistics (enforced by test). No claim of validation on real merchant data is made."
+}

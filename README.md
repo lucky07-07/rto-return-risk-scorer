@@ -97,7 +97,86 @@ model could achieve is computable — and is published up front:
 
 ## Results
 
-Metrics land here once `05_final_evaluation` has been run. The test set is opened once.
+**CatBoost**, tuned by FLAML, selected on validation. Test set opened **once**, at a
+threshold and tier cut points frozen before it was opened.
+
+Every number below is backed by [`reports/results/05_final_metrics.json`](reports/results/).
+
+### Held-out test set — 10,000 orders, base rate 14.7%
+
+| | Test | Validation |
+|---|---|---|
+| PR-AUC | **0.386** (2.62× the no-skill floor) | 0.397 |
+| ROC-AUC | 0.806 | 0.810 |
+| Brier | **0.106** | 0.109 |
+| Expected Calibration Error | **0.012** | 0.013 |
+| Precision / Recall / F1 | 0.458 / 0.269 / 0.339 | — |
+
+Confusion matrix at the frozen threshold (0.370): TP 396, FP 468, FN 1,077, TN 8,059.
+
+Validation→test drift is small and in the expected direction, so the model was not
+selected on validation noise. The **Bayes ceiling** for this data is PR-AUC 0.555 — the
+model captures ~62% of achievable headroom, and a score above the ceiling would be
+treated as a leak, not a win.
+
+### Money
+
+| Policy | Cost on 10,000 test orders |
+|---|---|
+| Allow COD on everything (no model) | ₹294,600 |
+| Disable COD on everything (no model) | ₹1,330,855 |
+| Model at the default 0.5 threshold | ₹285,954 |
+| **Model at the cost minimum (shipped)** | **₹265,119** |
+
+**Using 0.5 out of habit would have cost an extra ₹20,835** on these 10,000 orders.
+Saving against the best no-model policy: ₹29,481 (₹2.95/order).
+
+The threshold is genuinely sensitive to the cost assumptions — it moves across
+**0.21–0.48** as FN cost ranges ₹150–250 and margin 15–35%. That grid is published so a
+merchant can substitute their own numbers rather than inherit ours.
+
+### Three-tier policy
+
+| Tier | Share of orders | Actual RTO rate |
+|---|---|---|
+| Allow COD | 38% | 1.3% |
+| Charge a COD fee | 56% | 20.3% |
+| Disable COD | 6% | 47.7% |
+
+The fee tier's size rests on the softest assumptions in the project (fee abandonment
+rate, fee level — neither has a published source). `05` says so explicitly and treats
+the two-tier threshold as the more defensible result.
+
+### Prevalence shift — 18% to 35%
+
+The centrepiece. A model can hold its ranking and still lose money, because the
+threshold stops being the cost minimum. Both are measured:
+
+| Across the published 18–35% range | |
+|---|---|
+| Minimum PR-AUC lift | **1.89×** the no-skill floor — ranking does not collapse |
+| Beats the best no-model policy at every prevalence | **yes** |
+| Worst cost regret vs an oracle threshold | ₹16.42/order at 35% |
+| Worst regret **after prior correction** | **₹0.08/order** |
+| Calibration error, untreated | 0.013 → **0.169** |
+| Calibration error, prior-corrected | **0.029** |
+
+What breaks under shift is *calibration*, not ranking — and the fix is one line of
+arithmetic ([`prior_shift_correction`](src/evaluate.py)): a merchant who knows their own
+RTO rate rescales the scores before thresholding. No retraining, no new labels.
+
+### What we found that was not flattering
+
+- **No model beat logistic regression.** Across 11 benchmarked entries, a paired
+  bootstrap put zero models' confidence interval clear of it. Reported because
+  `PRE_REGISTRATION.md` committed to reporting it.
+- **Hyperparameter tuning made the held-out score worse** (−0.004 PR-AUC), while
+  improving the CV objective it was optimising. The tuning objective was overfitted.
+- Three engineered features are near-useless, declared weak in `02` *before* any model
+  saw them, and confirmed by SHAP in `05`.
+
+Full list, quantified by segment: section 13 of `05` and
+[`reports/results/05_exception_list.csv`](reports/results/).
 
 ---
 

@@ -240,4 +240,116 @@ search-strategy comparison has something to compare across.
 
 ---
 
+## 12. Hyperparameter tuning made the held-out score worse
+
+**Symptom.** All six searches (3 finalists × 2 strategies) improved their objective —
+mean CV gain +0.0149 PR-AUC, all six above the `03` default. Only 4 of 6 improved on
+**validation**, and the net effect was **−0.0037**: the best untuned entry (Extra Trees,
+0.4013) still beat the best tuned one (CatBoost/Optuna, 0.3977). Extra Trees was worst:
++0.0074 on CV, −0.0085 on validation.
+
+**Diagnosis.** The tuning objective was overfitted. Three expanding folds of the train
+split are a small, autocorrelated sample; a search running hundreds of trials against it
+finds configurations that suit *those* folds. Validation sits later in time and does not
+share the quirk, so the gain evaporates.
+
+**What we did not do.** Re-tune against validation. That moves the overfitting one level
+up and leaves nothing honest to select on. We also did not drop the untuned entries from
+`05`'s selection pool to protect the time already spent tuning — that would be a
+sunk-cost decision.
+
+**Recovery.** `05` selects on validation from a pool containing both tuned configurations
+and untuned `03` defaults. Added a CV-gain-vs-validation-gain transfer plot so the
+failure is visible rather than buried in a summary line.
+
+**What would actually help** (out of scope at this data size): more folds, repeated CV,
+or nested CV — all of which cost compute that would have to come out of the search
+budget the two strategies are being compared under.
+
+**Also fixed here:** my own narrative described this as "a gain this small", which
+describes a small *positive* number. The result was negative. The text now branches on
+the sign and states the finding first.
+
+---
+
+## 13. `04` is not bit-reproducible, and cannot be
+
+**Symptom.** Two runs of `04` with identical seeds produced different trial counts —
+Optuna 252/163 pruned on the first run, 255/168 on the second.
+
+**Diagnosis.** Not a bug. The budget both strategies receive is **wall clock**, which is
+the deliberate fairness choice: Optuna is trial-native and FLAML is budget-native, so an
+equal trial count would flatter Optuna. A wall-clock budget means trials completed depend
+on machine load.
+
+**Decision.** Keep the wall-clock budget. Fixing the trial count would make the notebook
+reproducible and the comparison dishonest.
+
+**Recovery.** Documented prominently in `04` itself: the space, seed, objective and folds
+are fixed and the qualitative conclusions are stable across reruns (both strategies land
+in the same region; CV gain does not transfer). Exact trial counts and third decimals are
+not stable, and **no `04` number is quoted as a headline in the README.**
+
+Notebooks `01`, `02`, `03` and `05` remain bit-reproducible.
+
+---
+
+## 14. The merchant-facing explanations were saying false things
+
+**Symptom.** Spot-checking the example scored orders in `05`:
+
+```
+order ORD049801   Rs2,545 electronics, PREPAID
+  RECOMMENDATION   allow COD
+  because:  home_kitchen is a high-return category; the delivery location; the delivery location
+```
+
+Three separate defects in one four-line block.
+
+**Diagnosis.**
+
+1. **A false statement about the order.** The one-hot column `category_home_kitchen`
+   carried a positive SHAP value on an *electronics* order — the model was being pushed
+   up by the category's *absence*. `risk_reasons` rendered the column name as a fact
+   about the order, so a merchant would have been told an electronics order was
+   home_kitchen.
+2. **A nonsensical recommendation.** The scorer is a COD gate; "allow COD" on an order
+   that is already prepaid is not an action anyone can take.
+3. **Duplicate reasons.** Two different one-hot columns both rendering as "the delivery
+   location".
+
+**Recovery.** `risk_reasons` now takes the feature *values* and only verbalises a one-hot
+column when the order actually has that value; reasons are deduplicated; state, tier and
+value-band columns get their own phrasing instead of a generic fallback. The example
+block prints "not applicable - order is already prepaid" for prepaid orders, and draws its
+low-risk examples from COD orders so the allow tier is demonstrated on an order the gate
+would actually see.
+
+**Kept.** The explanation layer is the part of this system a human reads and acts on. It
+deserved the same scrutiny as the metrics and had been getting less — the numbers were
+checked by assertions, the sentences by nobody.
+
+---
+
+## 15. The fee tier is the softest thing in the submission
+
+**Symptom.** The three-tier optimiser put **56% of orders** in the "charge a COD fee"
+tier.
+
+**Diagnosis.** Look at the cost model and it is obvious. The fee is modelled as revenue
+collected on delivered orders, so it offsets loss, and the only thing restraining the
+tier is an assumed `fee_abandon_rate` of 18%. We effectively told the optimiser the fee
+was close to free money, and it responded rationally.
+
+`cod_fee_inr` and `fee_abandon_rate` are both marked `assumed` in `config/evidence.yaml`
+with **no published source** — the two weakest numbers in the project.
+
+**Recovery.** Not a silent parameter tweak to make the output look reasonable. `05` now
+states the artefact explicitly, names the two assumptions responsible, says what would be
+needed to fix it (real abandonment-vs-fee-level data from an A/B test a merchant can run
+and we cannot), and directs the reader to the two-tier threshold — which rests only on
+FN cost and margin — as the more defensible result.
+
+---
+
 *Open items and deviations from `PRE_REGISTRATION.md` are appended here as they occur.*

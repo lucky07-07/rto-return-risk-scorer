@@ -378,30 +378,70 @@ REASON_TEMPLATES = {
 }
 
 
-def risk_reasons(shap_row, feature_names, top_k: int = 3) -> list[str]:
+ONE_HOT_PREFIXES = ("category_", "state_", "pincode_tier_", "order_value_band_")
+
+_BAND_WORDS = {
+    "under_500": "an order under Rs500",
+    "500_1000": "an order in the Rs500-1,000 impulse band",
+    "1000_plus": "an order above Rs1,000",
+}
+_TIER_WORDS = {
+    "metro": "delivery into a metro",
+    "tier_1": "delivery to a tier-1 city",
+    "tier_2": "delivery to a tier-2 town",
+    "tier_3": "delivery outside the main cities",
+}
+
+
+def _one_hot_reason(name: str) -> str | None:
+    """Phrase a one-hot column the order actually belongs to."""
+    if name.startswith("category_"):
+        return f"{name.removeprefix('category_').replace('_', ' ')} is a higher-return category"
+    if name.startswith("state_"):
+        return f"delivery to {name.removeprefix('state_')}"
+    if name.startswith("pincode_tier_"):
+        return _TIER_WORDS.get(name.removeprefix("pincode_tier_"), "the delivery location")
+    if name.startswith("order_value_band_"):
+        return _BAND_WORDS.get(name.removeprefix("order_value_band_"), "the basket value")
+    return None
+
+
+def risk_reasons(shap_row, feature_names, feature_values=None,
+                 top_k: int = 3) -> list[str]:
     """Turn one order's SHAP values into sentences a merchant can act on.
 
     Only reasons that push the score UP are returned: a risk explanation that
     leads with mitigating factors is not an explanation, it is a hedge.
+
+    ``feature_values`` matters more than it looks. A one-hot column can carry a
+    positive SHAP value for an order that is **not** in that category -- the
+    model is being pushed up by the *absence*. Rendering that as "home_kitchen is
+    a higher-return category" on an electronics order is a false statement shown
+    to a merchant, so one-hot columns are only ever verbalised when the order
+    actually has that value.
     """
     vals = np.asarray(shap_row, dtype=float)
-    order = np.argsort(-vals)
-    out = []
-    for i in order[:top_k]:
-        if vals[i] <= 0:
+    x = None if feature_values is None else np.asarray(feature_values, dtype=float)
+
+    out: list[str] = []
+    for i in np.argsort(-vals):
+        if vals[i] <= 0 or len(out) >= top_k:
             break
         name = feature_names[i]
-        base = name.split("_", 1)[-1] if name.startswith(("cat_", "num_")) else name
-        tpl = REASON_TEMPLATES.get(base)
-        if tpl is None:
-            if base.startswith("category_"):
-                tpl = (f"{base.removeprefix('category_')} is a high-return category",) * 2
-            elif base.startswith("state_") or base.startswith("pincode_tier_"):
-                tpl = ("the delivery location",) * 2
-            else:
-                tpl = (base.replace("_", " "),) * 2
-        out.append(tpl[0])
+
+        if name.startswith(ONE_HOT_PREFIXES):
+            # Only speak about a category the order is actually in.
+            if x is None or x[i] < 0.5:
+                continue
+            reason = _one_hot_reason(name)
+        else:
+            tpl = REASON_TEMPLATES.get(name)
+            reason = tpl[0] if tpl else name.replace("_", " ")
+
+        if reason and reason not in out:
+            out.append(reason)
     return out
+
 
 
 def prior_shift_correction(y_prob, source_rate: float, target_rate: float):

@@ -1,0 +1,309 @@
+{
+  "seed": 20260101,
+  "time_budget_s_per_model_per_strategy": 300,
+  "objective": {
+    "metric": "pr_auc",
+    "folds": 3,
+    "scheme": "expanding-window TimeSeriesSplit on train"
+  },
+  "finalists": [
+    "01_logistic",
+    "04_extra_trees",
+    "09_catboost"
+  ],
+  "head_to_head": [
+    {
+      "model": "Logistic Regression",
+      "optuna_best_cv": 0.4293645979099026,
+      "flaml_best_cv": 0.4293494684579966,
+      "delta_optuna_minus_flaml": 1.5129451906015223e-05,
+      "optuna_trials": 255,
+      "optuna_pruned": 168,
+      "flaml_trials": 378,
+      "untuned_cv": 0.4144660181728882,
+      "winner": "Optuna",
+      "tuning_gain_vs_untuned": 0.014898579737014417
+    },
+    {
+      "model": "Extra Trees",
+      "optuna_best_cv": 0.4181455429849282,
+      "flaml_best_cv": 0.40891641822121616,
+      "delta_optuna_minus_flaml": 0.009229124763712016,
+      "optuna_trials": 26,
+      "optuna_pruned": 17,
+      "flaml_trials": 67,
+      "untuned_cv": 0.4060921726279962,
+      "winner": "Optuna",
+      "tuning_gain_vs_untuned": 0.012053370356931992
+    },
+    {
+      "model": "CatBoost",
+      "optuna_best_cv": 0.42271061242853986,
+      "flaml_best_cv": 0.4243097126960668,
+      "delta_optuna_minus_flaml": -0.001599100267526965,
+      "optuna_trials": 13,
+      "optuna_pruned": 3,
+      "flaml_trials": 38,
+      "untuned_cv": 0.40116493322551117,
+      "winner": "FLAML",
+      "tuning_gain_vs_untuned": 0.023144779470555654
+    }
+  ],
+  "search_speed": [
+    {
+      "model": "Logistic Regression",
+      "strategy": "Optuna",
+      "final_cv_pr_auc": 0.4293645979099026,
+      "seconds_to_within_0.001": 2.306489,
+      "trials_to_get_there": 3
+    },
+    {
+      "model": "Logistic Regression",
+      "strategy": "FLAML",
+      "final_cv_pr_auc": 0.4293494684579966,
+      "seconds_to_within_0.001": 5.2822,
+      "trials_to_get_there": 6
+    },
+    {
+      "model": "Extra Trees",
+      "strategy": "Optuna",
+      "final_cv_pr_auc": 0.4181455429849282,
+      "seconds_to_within_0.001": 123.958778,
+      "trials_to_get_there": 13
+    },
+    {
+      "model": "Extra Trees",
+      "strategy": "FLAML",
+      "final_cv_pr_auc": 0.40891641822121616,
+      "seconds_to_within_0.001": 105.07185800000002,
+      "trials_to_get_there": 21
+    },
+    {
+      "model": "CatBoost",
+      "strategy": "Optuna",
+      "final_cv_pr_auc": 0.42271061242853986,
+      "seconds_to_within_0.001": 291.714965,
+      "trials_to_get_there": 14
+    },
+    {
+      "model": "CatBoost",
+      "strategy": "FLAML",
+      "final_cv_pr_auc": 0.4243097126960668,
+      "seconds_to_within_0.001": 259.39919000000003,
+      "trials_to_get_there": 34
+    }
+  ],
+  "best_configs": [
+    {
+      "model": "Logistic Regression",
+      "strategy": "Optuna",
+      "cv_pr_auc": 0.4293645979099026,
+      "config": {
+        "C": 0.0128464370286847,
+        "class_weight": null
+      }
+    },
+    {
+      "model": "Logistic Regression",
+      "strategy": "FLAML",
+      "cv_pr_auc": 0.4293494684579966,
+      "config": {
+        "C": 0.014242495933001708,
+        "class_weight": null
+      }
+    },
+    {
+      "model": "Extra Trees",
+      "strategy": "Optuna",
+      "cv_pr_auc": 0.4181455429849282,
+      "config": {
+        "n_estimators": 333,
+        "max_depth": 6,
+        "min_samples_leaf": 1,
+        "max_features": 0.21576353559036648
+      }
+    },
+    {
+      "model": "Extra Trees",
+      "strategy": "FLAML",
+      "cv_pr_auc": 0.40891641822121616,
+      "config": {
+        "n_estimators": 126,
+        "max_depth": 5,
+        "min_samples_leaf": 2,
+        "max_features": 0.7957580606817404
+      }
+    },
+    {
+      "model": "CatBoost",
+      "strategy": "Optuna",
+      "cv_pr_auc": 0.42271061242853986,
+      "config": {
+        "iterations": 225,
+        "learning_rate": 0.03727128176502571,
+        "depth": 3,
+        "l2_leaf_reg": 9.165899293428534,
+        "random_strength": 0.43385201922201505,
+        "bagging_temperature": 0.298463016710414
+      }
+    },
+    {
+      "model": "CatBoost",
+      "strategy": "FLAML",
+      "cv_pr_auc": 0.4243097126960668,
+      "config": {
+        "iterations": 519,
+        "depth": 4,
+        "learning_rate": 0.017215855850310612,
+        "l2_leaf_reg": 50.0,
+        "random_strength": 0.8163595825445358,
+        "bagging_temperature": 1.1544506140027266
+      }
+    }
+  ],
+  "tuned_val_scores": [
+    {
+      "key": "09_catboost__optuna",
+      "model": "CatBoost",
+      "strategy": "Optuna",
+      "val_pr_auc": 0.3976536995190439,
+      "val_roc_auc": 0.8092011452567284,
+      "val_brier": 0.10918709407620336,
+      "val_log_loss": 0.3442483936261836,
+      "untuned_val_pr_auc": 0.3930982157578525,
+      "gain_vs_untuned": 0.0045554837611914145,
+      "fit_seconds": 2.7052063941955566
+    },
+    {
+      "key": "09_catboost__flaml",
+      "model": "CatBoost",
+      "strategy": "FLAML",
+      "val_pr_auc": 0.3969942293994124,
+      "val_roc_auc": 0.8098195838900555,
+      "val_brier": 0.10917964117658517,
+      "val_log_loss": 0.3439435567388046,
+      "untuned_val_pr_auc": 0.3930982157578525,
+      "gain_vs_untuned": 0.0038960136415599478,
+      "fit_seconds": 5.287845849990845
+    },
+    {
+      "key": "01_logistic__optuna",
+      "model": "Logistic Regression",
+      "strategy": "Optuna",
+      "val_pr_auc": 0.3966185837109062,
+      "val_roc_auc": 0.8095645733918686,
+      "val_brier": 0.1093723662609752,
+      "val_log_loss": 0.3444056721718917,
+      "untuned_val_pr_auc": 0.39394140089056,
+      "gain_vs_untuned": 0.00267718282034618,
+      "fit_seconds": 0.4909365177154541
+    },
+    {
+      "key": "01_logistic__flaml",
+      "model": "Logistic Regression",
+      "strategy": "FLAML",
+      "val_pr_auc": 0.39654957973242577,
+      "val_roc_auc": 0.8095596869631609,
+      "val_brier": 0.10936349228092529,
+      "val_log_loss": 0.3443614749206493,
+      "untuned_val_pr_auc": 0.39394140089056,
+      "gain_vs_untuned": 0.0026081788418657603,
+      "fit_seconds": 0.5114691257476807
+    },
+    {
+      "key": "04_extra_trees__optuna",
+      "model": "Extra Trees",
+      "strategy": "Optuna",
+      "val_pr_auc": 0.3958988209027455,
+      "val_roc_auc": 0.8057415537316281,
+      "val_brier": 0.11086227938134408,
+      "val_log_loss": 0.3540464645961899,
+      "untuned_val_pr_auc": 0.40131876731131627,
+      "gain_vs_untuned": -0.005419946408570797,
+      "fit_seconds": 3.844858169555664
+    },
+    {
+      "key": "04_extra_trees__flaml",
+      "model": "Extra Trees",
+      "strategy": "FLAML",
+      "val_pr_auc": 0.3897270267867508,
+      "val_roc_auc": 0.8026933384233632,
+      "val_brier": 0.11011776581828395,
+      "val_log_loss": 0.34729153809122426,
+      "untuned_val_pr_auc": 0.40131876731131627,
+      "gain_vs_untuned": -0.011591740524565464,
+      "fit_seconds": 3.7553861141204834
+    }
+  ],
+  "param_importance": [
+    {
+      "model": "Logistic Regression",
+      "parameter": "C",
+      "importance": 1.0
+    },
+    {
+      "model": "Logistic Regression",
+      "parameter": "class_weight",
+      "importance": 0.0
+    },
+    {
+      "model": "Extra Trees",
+      "parameter": "max_depth",
+      "importance": 0.7469159667402715
+    },
+    {
+      "model": "Extra Trees",
+      "parameter": "max_features",
+      "importance": 0.2206945235907796
+    },
+    {
+      "model": "Extra Trees",
+      "parameter": "min_samples_leaf",
+      "importance": 0.022895457846076248
+    },
+    {
+      "model": "Extra Trees",
+      "parameter": "n_estimators",
+      "importance": 0.009494051822872706
+    },
+    {
+      "model": "CatBoost",
+      "parameter": "iterations",
+      "importance": 0.5823991322482471
+    },
+    {
+      "model": "CatBoost",
+      "parameter": "learning_rate",
+      "importance": 0.15348829390310498
+    },
+    {
+      "model": "CatBoost",
+      "parameter": "depth",
+      "importance": 0.1213007484144002
+    },
+    {
+      "model": "CatBoost",
+      "parameter": "l2_leaf_reg",
+      "importance": 0.07959427906224087
+    },
+    {
+      "model": "CatBoost",
+      "parameter": "bagging_temperature",
+      "importance": 0.05664856039067205
+    },
+    {
+      "model": "CatBoost",
+      "parameter": "random_strength",
+      "importance": 0.00656898598133483
+    }
+  ],
+  "bayes_ceiling_val": {
+    "pr_auc": 0.5547817270393051,
+    "roc_auc": 0.868011452567284,
+    "brier": 0.09401952876799757,
+    "log_loss": 0.30037419974810425,
+    "mean_pred": 0.15795125094862025,
+    "base_rate": 0.155
+  },
+  "net_gain_vs_untuned": -0.0036650677922723807
+}
