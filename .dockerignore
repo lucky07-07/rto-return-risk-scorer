@@ -1,0 +1,32 @@
+# Keep the build context small. Only what the running service touches ships.
+.git
+.gitignore
+.venv
+venv
+__pycache__
+*.pyc
+.pytest_cache
+.ipynb_checkpoints
+
+# Not needed at serving time
+notebooks/
+reports/
+tests/
+scripts/
+app/
+docs/
+conftest.py
+
+# Regenerable or sealed data. val.parquet is kept, it backs /sample_orders.
+data/raw
+data/interim
+data/processed/train.parquet
+data/processed/test.parquet
+
+# Every model except the one that ships
+models/04_*.joblib
+
+# Secrets never enter the image. Render injects GEMINI_API_KEY at runtime.
+.env
+.env.local
+config/razorpay_test_keys.csv

@@ -1,0 +1,16 @@
+# Render Blueprint. Connect this repository at https://render.com and Render
+# reads this file, no manual service configuration needed.
+services:
+  - type: web
+    name: cod-return-risk-scorer
+    runtime: docker
+    plan: free
+    region: singapore          # closest region to an Indian audience
+    dockerfilePath: ./deploy/Dockerfile
+    dockerContext: .
+    healthCheckPath: /health
+    envVars:
+      # Set this in the Render dashboard, never in this file.
+      # Without it the app falls back to its built-in plain-English summaries.
+      - key: GEMINI_API_KEY
+        sync: false

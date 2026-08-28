@@ -267,22 +267,32 @@ Anil Kumar
 
 ## Deploying it yourself
 
-The demo runs as one container, the API and the page together on a single URL.
+The whole demo is one container, the API and the page together on a single URL.
 
-```bash
-huggingface-cli login
-```
+The repository includes a [`render.yaml`](render.yaml) blueprint, so Render configures
+the service itself.
 
-Use a token with **write** access. A read-only token cannot create a Space.
+1. Go to <https://dashboard.render.com/blueprints> and choose **New Blueprint Instance**
+2. Connect this GitHub repository
+3. Render reads `render.yaml` and creates the service, no manual settings needed
+4. Under the service's **Environment**, add `GEMINI_API_KEY` with your own key
 
-```bash
-python deploy/publish_space.py
-```
+Step 4 is optional. Without it the plain-English summaries come from the built-in
+template instead of Gemini, and everything else works normally.
 
-That uploads only what the service needs, about 3.4 MB, and Hugging Face builds the
-container from `deploy/Dockerfile`. Set `GEMINI_API_KEY` as a **secret** in the Space
-settings so the plain-English summaries use Gemini. Without it the app falls back to its
-built-in summaries and still works.
+The free instance sleeps after 15 minutes of inactivity, so the first visit after a
+quiet spell takes about 50 seconds to wake up. Measured runtime memory is 261 MB
+against the free tier's 512 MB limit.
 
 `deploy/requirements-serve.txt` is deliberately smaller than `requirements.txt`. The
-container has no need for Jupyter, Optuna, FLAML, Streamlit or matplotlib.
+container has no reason to carry Jupyter, Optuna, FLAML, Streamlit or matplotlib, and a
+check confirms nothing outside that shorter list is imported at serving time.
+
+### A note on the hosts I tried first
+
+**Vercel cannot run this.** Its Python functions cap at 250 MB unzipped. CatBoost alone
+is 353 MB and the minimum serving set is about 600 MB, so no arrangement fits without
+dropping the real model.
+
+**Hugging Face Spaces now needs a paid plan** for Docker Spaces on any tier, including
+free CPU. Only Static Spaces are free, and those cannot run a Python service.
