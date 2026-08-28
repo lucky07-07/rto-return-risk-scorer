@@ -507,3 +507,86 @@ averages across a 62% COD book and hides it. Added to the exception list in `05`
 ---
 
 *Open items and deviations from `PRE_REGISTRATION.md` are appended here as they occur.*
+
+---
+
+## 19. No COD order reaches the "allow COD" tier
+
+**Found by building the demo, not by evaluating the model.** The Streamlit app's first
+screen defaulted to an ALLOW example, and that example was **prepaid** — so the very first
+thing a reviewer would see was "this order is already prepaid, the recommendation does not
+apply". That looked like a sampling accident. It was not.
+
+**The finding**, on the sealed test predictions already committed in
+`05_test_predictions.parquet`:
+
+| Tier | Prepaid | COD | Total |
+|---|---|---|---|
+| allow_cod | **3,811** | **0** | 3,811 |
+| charge_cod_fee | 34 | 5,560 | 5,594 |
+| disable_cod | 0 | 595 | 595 |
+
+The allow tier is **100% prepaid**. Conditional on an order actually being COD: 90.3% get
+a fee, 9.7% get blocked, **0% get frictionless COD**.
+
+**Why the headline table was misleading.** The README reported "Allow COD — 38% of orders,
+1.3% RTO", which reads as *38% of customers sail through untouched*. Those 3,811 orders are
+prepaid; "allow COD" on a prepaid order is a no-op. The gate never actually clears anybody.
+
+**Root cause — the same soft assumption as #15.** The fee is modelled as revenue collected
+on delivery, so the tier optimiser has every incentive to push volume into it. It drove
+`low_cut` to **0.05, the bottom of its search grid** — a boundary solution, which is itself
+a signal it would have gone lower if allowed. Almost no COD order scores under 0.05 (the
+COD base rate is 23%), so the allow band sits in a region only prepaid orders occupy.
+
+**What we did not do.** Quietly widen the grid, or hand-set `low_cut` to a value that
+produces a nicer-looking three-way split. Either would be tuning the policy to make the
+demo read well.
+
+**Recovery.**
+* README now carries **both** tables — share of all orders *and* share of COD orders — with
+  the 0% stated plainly.
+* `sample_orders` reports `cod_orders_in_tier` and an explicit note when a tier is
+  unreachable for COD orders; the UI renders it as a warning rather than leaving a reviewer
+  to notice.
+* `tests/test_api.py::test_allow_tier_contains_no_cod_orders` pins it. If a future change
+  makes the allow tier reachable for COD orders, the test fails and the note and the README
+  table have to be revisited rather than going stale.
+
+**Still open.** The two-tier threshold (0.370) is unaffected and remains the defensible
+result. Whether a three-tier policy is worth shipping at all depends on real
+fee-abandonment data we do not have — same conclusion as #15, now with a sharper symptom.
+
+---
+
+## 20. The demo's input contract does not match a checkout payload
+
+**Symptom.** Wiring `api/main.py` up, the model wanted 32 columns and a realistic checkout
+payload could supply about half of them.
+
+**Diagnosis.** Three different kinds of gap, only one of which is a real problem:
+
+* **Derivable from the pincode** — `city`, `state`, `pincode_tier`. Not a gap. The API now
+  looks these up against the real India Post directory rather than accepting them, because
+  a caller who could pass a state that disagrees with the pincode would hand the model a
+  combination it never saw in training.
+* **Derivable from the order** — `order_value_band`, the address-quality block, the log
+  transforms, `tier_ordinal`. Also not a gap: `src.features.add_engineered_features` — the
+  same function `01` used — computes them.
+* **Genuinely absent — the customer history block.** `past_orders`, `past_rto_count`,
+  `past_rto_rate`, `has_history`, `account_age_days`, `order_velocity_24h` come from the
+  merchant's own order store, not from a checkout form.
+
+**Recovery.** `customer_history` is an explicit sub-object on the request with first-time
+customer defaults. Omitting it scores the order as a genuine first-time customer, which is
+a real and common case (10% of the test split) and one the model handles measurably worse —
+`02` measured the dilution at 0.029 AUC before any model was fitted.
+
+**Worth stating for a deployment.** This is the integration cost nobody sees in a notebook:
+the scorer is only as good as the customer history the merchant can look up at checkout
+latency. A merchant who cannot join that in time gets first-order performance on every
+order, which is the weaker regime in the exception list.
+
+---
+
+*Open items and deviations from `PRE_REGISTRATION.md` are appended here as they occur.*

@@ -143,11 +143,31 @@ merchant can substitute their own numbers rather than inherit ours.
 
 ### Three-tier policy
 
-| Tier | Share of orders | Actual RTO rate |
+| Tier | Share of all orders | Actual RTO rate |
 |---|---|---|
 | Allow COD | 38% | 1.3% |
 | Charge a COD fee | 56% | 20.3% |
 | Disable COD | 6% | 47.7% |
+
+**That table needs a second one next to it, or it misleads.** The COD gate only acts on
+COD orders, and conditional on being one:
+
+| Tier | Share of **COD** orders | Actual RTO rate |
+|---|---|---|
+| Allow COD | **0%** — no COD order reaches this tier | — |
+| Charge a COD fee | **90.3%** | 20.4% |
+| Disable COD | **9.7%** | 47.7% |
+
+The allow tier is **100% prepaid** (3,811 of 3,811 test orders), and "allow COD" on an
+order that is already prepaid is a no-op. So the shipped policy does not, in practice,
+offer any COD customer frictionless COD — it offers a fee or a block. Read the first
+table alone and you would conclude 38% of customers sail through untouched; the second
+table is what actually happens.
+
+Root cause is the same soft assumption flagged below: the fee is modelled as near-free
+revenue, so the optimiser drove `low_cut` to 0.05, the bottom of its search grid, where
+only prepaid orders live. Found while building the demo, not during evaluation —
+`WHAT_BROKE.md` #19.
 
 The fee tier's size rests on the softest assumptions in the project (fee abandonment
 rate, fee level — neither has a published source). `05` says so explicitly and treats
@@ -258,12 +278,53 @@ jupyter lab
 
 Run the notebooks in order. `01` writes `data/processed/`; nothing downstream runs without it.
 
-```bash
-uvicorn api.main:app --reload
-```
+## Live Demo
+
+A single-page Streamlit app that scores one order and walks the decision end to end:
+
+**risk probability → expected ₹ loss → ALLOW / REVIEW / BLOCK → reasons**
 
 ```bash
 streamlit run app/streamlit_app.py
+```
+
+Opens on <http://localhost:8501>. **Click the dropdown at the top** — it is pre-filled
+with real orders spanning all three tiers, so you can see every outcome in under a
+minute without typing an address. Everything below updates live as you edit the form.
+
+The demo runs the **exact frozen model and thresholds from `05`** — CatBoost tuned by
+FLAML, threshold 0.370, tier cuts 0.05 / 0.40, loaded from `models/final_model.joblib`.
+Nothing is retrained, re-tuned or simplified for the demo; the page header shows the
+artifact's SHA-256 so you can check it against `/health`.
+
+The UI imports `src.serving.score_order` directly, so it needs **one process, not two**.
+The same function backs the FastAPI service if you want HTTP:
+
+```bash
+uvicorn api.main:app --reload      # http://127.0.0.1:8000/docs
+```
+
+`GET /health` reports the loaded artifact and its frozen operating point,
+`GET /sample_orders` returns the pre-filled examples, `POST /score` scores one order.
+
+**On the sample orders:** they come from the **validation** split, not the sealed test
+set. `PRE_REGISTRATION.md` commits to the test set being read only in `05`, and
+populating a demo form is not a good enough reason to spend that. Every response says so
+in its `note` field.
+
+One thing the demo makes visible that the headline table does not: **no COD order reaches
+the ALLOW tier**. That tier is entirely prepaid, so the app flags it rather than letting
+you assume otherwise — see the three-tier section above and `WHAT_BROKE.md` #19.
+
+```bash
+streamlit run app/streamlit_app.py
+```
+
+The UI imports the scoring function directly — **one process, no API needed**. If you
+want the HTTP service as well:
+
+```bash
+uvicorn api.main:app --reload
 ```
 
 ---
