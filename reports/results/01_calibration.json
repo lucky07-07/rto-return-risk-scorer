@@ -1,0 +1,87 @@
+{
+  "calibration": {
+    "n_orders": 50000,
+    "cod_share": 0.61816,
+    "cod_rto_rate": 0.25611492170311895,
+    "prepaid_rto_rate": 0.014089671066415253,
+    "overall_rto_rate": 0.1637,
+    "cod_rto_by_band": {
+      "under_500": 0.24805109420494037,
+      "500_1000": 0.2774873671371319,
+      "1000_plus": 0.23795969486508026
+    },
+    "cod_rto_by_category": {
+      "accessories": 0.1892323030907278,
+      "beauty": 0.18782529984159313,
+      "electronics": 0.14540466392318244,
+      "fashion": 0.39942670752199266,
+      "footwear": 0.23981237173849312,
+      "home_kitchen": 0.16978131212723657
+    },
+    "cod_rto_fashion": 0.39942670752199266,
+    "city_rto_min": 0.15,
+    "city_rto_max": 0.36809815950920244,
+    "n_cities_scored": 51,
+    "city_min_name": "Allahabad",
+    "city_max_name": "Krishna"
+  },
+  "solved_offsets": {
+    "COD|under_500|fashion": -1.5485686757339714,
+    "COD|under_500|other": -2.3089311972751645,
+    "COD|500_1000|fashion": -1.3194857614041697,
+    "COD|500_1000|other": -2.32764317883795,
+    "COD|1000_plus|fashion": -1.6355516952667228,
+    "COD|1000_plus|other": -2.2034591810803015,
+    "PREPAID|under_500|fashion": -5.236466619450251,
+    "PREPAID|under_500|other": -5.515394493159569,
+    "PREPAID|500_1000|fashion": -5.136868740290911,
+    "PREPAID|500_1000|other": -5.4575298705224675,
+    "PREPAID|1000_plus|fashion": -5.330571123153048,
+    "PREPAID|1000_plus|other": -5.306573702645521
+  },
+  "targets": {
+    "cod": {
+      "under_500": 0.25,
+      "500_1000": 0.28,
+      "1000_plus": 0.24
+    },
+    "prepaid": {
+      "under_500": 0.01442307692307692,
+      "500_1000": 0.016153846153846158,
+      "1000_plus": 0.013846153846153845
+    }
+  },
+  "expected_cod_rate": 0.25829914585220654,
+  "expected_prepaid_rate": 0.014724834405066963,
+  "bayes_ceiling": {
+    "roc_auc": 0.8692053245851001,
+    "pr_auc": 0.5774450364202565,
+    "brier": 0.0966852179886887
+  },
+  "split_summary": {
+    "train": {
+      "orders": 35000,
+      "first": "2024-01-01",
+      "last": "2025-01-22",
+      "rto_rate": 0.1696,
+      "cod_rto_rate": 0.2658,
+      "cod_share": 0.6172
+    },
+    "val": {
+      "orders": 5000,
+      "first": "2025-01-22",
+      "last": "2025-03-16",
+      "rto_rate": 0.155,
+      "cod_rto_rate": 0.2387,
+      "cod_share": 0.63
+    },
+    "test": {
+      "orders": 10000,
+      "first": "2025-03-16",
+      "last": "2025-06-30",
+      "rto_rate": 0.1473,
+      "cod_rto_rate": 0.2309,
+      "cod_share": 0.6155
+    }
+  }
+}

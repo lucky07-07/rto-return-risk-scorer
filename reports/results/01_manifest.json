@@ -1,0 +1,48 @@
+{
+  "files": {
+    "data/interim/customers.csv": {
+      "bytes": 4444163,
+      "sha256": "fc8df89dfd1eface0990e120c0b8e03392d800db5fae4a042090c007775899e1"
+    },
+    "data/interim/latents.csv": {
+      "bytes": 4441644,
+      "sha256": "b4a0c006faf2bd9f62388777f645d52faf0f3e3df5bff7d6a66369710e963f66"
+    },
+    "data/interim/pincode_footprint.csv": {
+      "bytes": 323124,
+      "sha256": "5127c45fa0f5cdf1206fc2a05c2590b193d7d1a6c6fe57558690a658a7b06074"
+    },
+    "data/processed/test.parquet": {
+      "bytes": 1012098,
+      "sha256": "6c0d329d621f93596becd55aec92dfcbc190ebdcd5aa368400c372174999cd15"
+    },
+    "data/processed/train.parquet": {
+      "bytes": 2731876,
+      "sha256": "d9c211a4858d339173f5659427bb3457d1a617036df54f8eab2f23a05dadbcf0"
+    },
+    "data/processed/val.parquet": {
+      "bytes": 563869,
+      "sha256": "8773767e69b153f762e20bc1e22ef26e386200b27a150699c0f331cf73a41f51"
+    },
+    "data/raw/orders.csv": {
+      "bytes": 12529383,
+      "sha256": "089a9d5e61441d4ce90251c227a4677b142a0dde94535be57fc222213e3b100b"
+    },
+    "reports/results/01_calibration.json": {
+      "bytes": 2580,
+      "sha256": "3d3fe6dff7179b95882382e9de5f0ced87b1311dd1f0b55e824bcc2d99f734d4"
+    }
+  },
+  "n_customers": 20000,
+  "n_orders": 50000,
+  "seed": 20260101,
+  "split": {
+    "test": 0.2,
+    "train": 0.7,
+    "val": 0.1
+  },
+  "window": [
+    "2024-01-01",
+    "2025-06-30"
+  ]
+}

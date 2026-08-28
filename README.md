@@ -50,9 +50,11 @@ Synthetic orders on a **real geographic skeleton**.
 
 ### Honest statement on the data
 
-No public dataset of Indian COD orders with RTO outcomes exists — those labels sit with
-merchants and courier aggregators. **This model is therefore not validated on real merchant
-data, and no such claim is made.**
+> Trained and evaluated on synthetic orders built on the real India Post pincode
+> directory and calibrated against published Indian RTO statistics (enforced by test).
+> We do not claim validation on real merchant data — no such dataset is public.
+> Instead we report performance across the full 18–35% RTO range observed across Indian
+> cities, so degradation under distribution shift is measured rather than assumed.
 
 What *is* real is the calibration. The generator is constrained to reproduce published
 Indian statistics, and this is enforced as a test rather than asserted in prose:
@@ -61,8 +63,35 @@ Indian statistics, and this is enforced as a test rather than asserted in prose:
 pytest tests/test_calibration.py
 ```
 
-It fails the build if the generated 26% COD RTO rate, the sub-2% prepaid rate, or the
-non-monotonic order-value curve drift outside tolerance.
+It fails the build if any published rate drifts outside tolerance. Achieved
+(`reports/results/01_calibration.json`):
+
+| Statistic | Published | Generated |
+|---|---|---|
+| COD share of orders | 60–65% | 61.8% |
+| RTO on COD | 26% | 25.6% |
+| RTO on prepaid | <2% | 1.4% |
+| RTO, order < ₹500 | 25% | 24.8% |
+| RTO, order ₹500–1,000 | 28% | **27.7%** ← the peak |
+| RTO, order > ₹1,000 | 24% | 23.8% |
+| RTO, fashion on COD | 40%+ | 39.9% |
+
+The order-value curve is **non-monotonic**: RTO peaks in the ₹500–1,000 impulse band
+and *falls* above ₹1,000. Assuming risk rises with order value is the intuitive move,
+and the published data contradicts it — so it is asserted, not hoped for.
+
+Full provenance, schema and limitations: [`DATA_CARD.md`](DATA_CARD.md).
+
+### The difficulty ceiling
+
+The labels are Bernoulli draws from a known probability field, so the best score any
+model could achieve is computable — and is published up front:
+
+| | ROC-AUC | PR-AUC | Brier |
+|---|---|---|---|
+| Bayes ceiling | 0.869 | 0.577 | 0.097 |
+
+**A model scoring above the ceiling would be evidence of leakage, not of skill.**
 
 ---
 
@@ -104,7 +133,9 @@ streamlit run app/streamlit_app.py
 
 ## Evaluation approach
 
-Three commitments, made before any model was trained (see `PRE_REGISTRATION.md`):
+Three commitments, made before any model was trained — fixed in
+[`PRE_REGISTRATION.md`](PRE_REGISTRATION.md), committed and tagged `pre-registration`
+before a single model existed:
 
 **Chronological split.** Train on earlier orders, test on later. A random split leaks time.
 
@@ -130,6 +161,15 @@ This system is a **scorer**. By construction it:
 The recommended action is advisory. Acting on it is the merchant's decision.
 
 ---
+
+## Documents
+
+| | |
+|---|---|
+| [`PRE_REGISTRATION.md`](PRE_REGISTRATION.md) | Metrics, thresholds and protocol, fixed before any training |
+| [`DATA_CARD.md`](DATA_CARD.md) | What is real, what is generated, schema, limitations |
+| [`WHAT_BROKE.md`](WHAT_BROKE.md) | Running log of failures and recoveries |
+| [`ARCHITECTURE.md`](ARCHITECTURE.md) | System design and data flow |
 
 ## Repository layout
 

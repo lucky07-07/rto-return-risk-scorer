@@ -26,9 +26,19 @@ city_rto_range:
   min: {city: "Vadodara", value: 0.18, source: "ShipNotes FY25 city-wise"}
   max: {city: "Patna",    value: 0.35, source: "ShipNotes FY25 city-wise"}
 
+fashion_rto_rate:
+  value: 0.40
+  status: grounded
+  source: "Fashion/apparel RTO reported 40%+ on COD; calibrated as an explicit cell"
+
 category_multipliers:
-  fashion: {value: 1.55, status: grounded, source: "Fashion/apparel RTO reported 40%+"}
-  other:   {value: 1.00, status: assumed}
+  fashion:      {value: 1.55, status: grounded, source: "Fashion/apparel RTO reported 40%+"}
+  footwear:     {value: 1.32, status: assumed, note: "Sizing-driven refusals, below apparel"}
+  accessories:  {value: 1.08, status: assumed}
+  beauty:       {value: 0.94, status: assumed}
+  home_kitchen: {value: 0.84, status: assumed}
+  electronics:  {value: 0.68, status: assumed, note: "Considered purchase, high ticket"}
+  other:        {value: 1.00, status: assumed}
 
 cost_model:
   fn_cost_inr:
