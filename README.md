@@ -4,8 +4,14 @@
 
 Razorpay AI Buildathon 2026 · Track 02, AI Risk Manager
 
-> 🔗 **Live demo:** _deploying, URL will be added here_
-> 📄 [How it was built and tested](#for-the-technically-minded) · [What it gets wrong](#what-it-gets-wrong)
+### ▶ [Try it live](https://cod-return-risk-scorer.onrender.com/)
+
+<https://cod-return-risk-scorer.onrender.com/>
+
+It runs on a free instance that sleeps when idle, so the first visit can take about
+50 seconds to wake. After that it responds immediately.
+
+[What it gets wrong](#what-it-gets-wrong) · [Results](#results) · [How it was built](#for-the-technically-minded)
 
 ---
 
@@ -74,7 +80,58 @@ up, the app writes the same summary itself and carries on working.
 
 ![Architecture, from generated data through to the merchant-facing page](docs/architecture_diagram.png)
 
-Editable source, [`docs/architecture_diagram.drawio`](docs/architecture_diagram.drawio)
+Editable source, [`docs/architecture_diagram.svg`](docs/architecture_diagram.svg)
+
+---
+
+## Results
+
+Four charts that carry most of the argument. Every one is produced by the notebooks and
+lives in [`reports/figures/`](reports/figures/), nothing here was drawn by hand.
+
+### Did any model actually beat a simple one?
+
+![Each model's PR-AUC difference against logistic regression, with 95% paired bootstrap confidence intervals](reports/figures/03_bootstrap_vs_logreg.png)
+
+Eleven models were compared. The dot is how much better or worse each was than plain
+logistic regression, and the whiskers are the range we can actually be confident about.
+**Every whisker crosses zero except the two in red, which were worse.** So nothing
+sophisticated genuinely beat the simple model, and saying otherwise would be reading
+noise as a result.
+
+### Where the money is actually lost
+
+![Rupee cost against threshold, showing the false-negative and false-positive curves crossing at the cost minimum](reports/figures/05_cost_curve.png)
+
+The two dashed lines are the two ways of being wrong. Flag too few orders and you burn
+shipping on returns, the rising orange line. Flag too many and you lose good sales, the
+falling green line. Total cost is the blue curve, and the cheapest point sits at **0.370**,
+not at the 0.5 that most people would reach for. That gap is worth **₹20,835** on 10,000
+orders.
+
+### What the model actually looks at
+
+![SHAP summary showing which features drive predictions and in which direction](reports/figures/05_shap_summary.png)
+
+Each row is one input, ordered by how much it moves decisions. Paying cash on delivery
+dominates by a wide margin, then whether it is a fashion item, then the customer's own
+return history. On the right, red means a high value for that input and blue a low one, so
+you can read which direction each factor pushes. Nothing surprising is hiding in here,
+which is what you want from a risk model somebody has to defend.
+
+### Does it survive a different kind of customer?
+
+![Prevalence sweep from 18 to 35 percent showing ranking holds while calibration drifts, and the correction that fixes it](reports/figures/05_prevalence_shift.png)
+
+Return rates vary from about 18% in Vadodara to 35% in Patna. This is the model tested
+across that whole range, and it is the direct answer to the failure that sinks tools like
+this. **The ranking holds everywhere.** What breaks is the *calibration*, the bottom-right
+panel, which quietly moves the cheapest threshold to the wrong place. One line of
+arithmetic corrects it, cutting the worst-case waste from **₹16.42 to ₹0.08 per order**.
+
+A second study reweights the test set to seven different merchant profiles, from
+metro-heavy to small-town, fashion-led to electronics-led. Ranking stays useful in all
+seven, and the full table is in [`WHAT_BROKE.md`](WHAT_BROKE.md) #18.
 
 ---
 
@@ -137,7 +194,8 @@ one and a risky one. Interactive API documentation is at <http://127.0.0.1:8000/
 pytest -q
 ```
 
-49 tests covering data calibration, leakage guards and the API.
+55 tests covering data calibration, leakage guards, the API contract and the
+plain-English fallback.
 
 **7. Rebuild the model from scratch, optional**
 
@@ -158,12 +216,13 @@ api/            Web service and the one-page demo UI
 app/            Alternative Streamlit interface, optional
 config/         Published statistics the generated data is calibrated against
 data/external/  Real India Post pincode directory, 39,736 post offices
-docs/           Architecture diagram and screenshots
+deploy/         Dockerfile and the serving-only dependency list
+docs/           Architecture diagram and demo screenshots
 models/         The trained model plus its decision cut-offs, one file
 notebooks/      The full build, 01 to 05, run in order
 reports/        Every chart and every metric, written by the notebooks
 src/            The reusable code the notebooks and the web service both import
-tests/          Calibration, leakage and API tests
+tests/          Calibration, leakage, API and fallback tests
 ```
 
 ---
@@ -236,7 +295,7 @@ skill, and the notebooks assert on it.
   and falls above ₹1,000, which is what the published data shows and the opposite of the
   intuitive assumption.
 - Pincode history is target-encoded out of fold. Doing it the naive way inflates the
-  apparent score by 0.170 AUC, which notebook `02` measures rather than assumes.
+  apparent score by 0.17 AUC, which notebook `02` measures rather than assumes.
 - 11 models benchmarked on identical folds, then Optuna and FLAML compared head to head on
   an identical wall-clock budget.
 - The test set was opened once, at settings frozen on validation beforehand.
@@ -254,14 +313,6 @@ order or contacts a customer. The recommendation is advice. Acting on it is the 
 decision. There is nothing here that could be repurposed to commit fraud.
 
 ---
-
-## Licence
-
-[MIT](LICENSE)
-
-## Author
-
-Anil Kumar
 
 ---
 
@@ -296,3 +347,15 @@ dropping the real model.
 
 **Hugging Face Spaces now needs a paid plan** for Docker Spaces on any tier, including
 free CPU. Only Static Spaces are free, and those cannot run a Python service.
+
+---
+
+## Licence
+
+[MIT](LICENSE)
+
+## Author
+
+Anil Kumar
+
+---
