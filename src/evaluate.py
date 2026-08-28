@@ -407,11 +407,17 @@ def _one_hot_reason(name: str) -> str | None:
 
 
 def risk_reasons(shap_row, feature_names, feature_values=None,
-                 top_k: int = 3) -> list[str]:
+                 top_k: int = 3, direction: str = "up") -> list[str]:
     """Turn one order's SHAP values into sentences a merchant can act on.
 
-    Only reasons that push the score UP are returned: a risk explanation that
+    ``direction="up"`` returns what pushed the score UP: a risk explanation that
     leads with mitigating factors is not an explanation, it is a hedge.
+
+    ``direction="down"`` returns what held it DOWN, and is the right choice when
+    the decision being explained is *allow*. Listing three faint upward nudges as
+    the "reasons" for a 0.8% score invites the obvious question -- if this pincode
+    is high-RTO, why is the order low-risk? -- and answers it badly. What a
+    merchant needs there is why the order was cleared.
 
     ``feature_values`` matters more than it looks. A one-hot column can carry a
     positive SHAP value for an order that is **not** in that category -- the
@@ -422,10 +428,16 @@ def risk_reasons(shap_row, feature_names, feature_values=None,
     """
     vals = np.asarray(shap_row, dtype=float)
     x = None if feature_values is None else np.asarray(feature_values, dtype=float)
+    if direction not in {"up", "down"}:
+        raise ValueError("direction must be 'up' or 'down'")
+    upward = direction == "up"
 
     out: list[str] = []
-    for i in np.argsort(-vals):
-        if vals[i] <= 0 or len(out) >= top_k:
+    order = np.argsort(-vals) if upward else np.argsort(vals)
+    for i in order:
+        if len(out) >= top_k:
+            break
+        if (vals[i] <= 0) if upward else (vals[i] >= 0):
             break
         name = feature_names[i]
 
@@ -436,7 +448,7 @@ def risk_reasons(shap_row, feature_names, feature_values=None,
             reason = _one_hot_reason(name)
         else:
             tpl = REASON_TEMPLATES.get(name)
-            reason = tpl[0] if tpl else name.replace("_", " ")
+            reason = tpl[0 if upward else 1] if tpl else name.replace("_", " ")
 
         if reason and reason not in out:
             out.append(reason)
