@@ -334,17 +334,34 @@ def sample_orders(n_per_tier: int = 2, seed: int = 20260101,
     tiers = apply_tiers(p, service.low_cut, service.high_cut)
 
     rng = np.random.default_rng(seed)
+    is_cod = val["is_cod"].to_numpy()
     picked: list[dict] = []
+    tier_notes: dict[str, str] = {}
+
     for tier in (ALLOW, FEE, BLOCK):
-        idx = np.flatnonzero((tiers == tier) & val["is_cod"].to_numpy())
-        if idx.size == 0:                      # fall back to any order in the tier
+        cod_idx = np.flatnonzero((tiers == tier) & is_cod)
+        idx = cod_idx
+        if idx.size == 0:
+            # No COD order reaches this tier at the frozen cut points. That is a
+            # real property of the shipped policy, not a sampling accident, so
+            # the response says so instead of silently substituting a prepaid
+            # order and letting a reader assume COD orders land here.
             idx = np.flatnonzero(tiers == tier)
+            tier_notes[TIER_TO_LABEL[tier]] = (
+                f"No COD order in the validation split reaches the "
+                f"'{tier}' tier at the frozen cut points "
+                f"({service.low_cut} / {service.high_cut}); this tier is "
+                f"populated entirely by prepaid orders, for which the COD gate "
+                f"is a no-op. The example below is therefore prepaid."
+            )
         take = rng.choice(idx, size=min(n_per_tier, idx.size), replace=False)
         for i in sorted(take):
             r = val.iloc[int(i)]
             picked.append({
                 "label": TIER_TO_LABEL[tier],
                 "expected_action": tier,
+                "is_cod": bool(r["is_cod"]),
+                "cod_orders_in_tier": int(cod_idx.size),
                 "model_probability": round(float(p[i]), 4),
                 "payload": {
                     "order_id": r["order_id"],
@@ -366,4 +383,12 @@ def sample_orders(n_per_tier: int = 2, seed: int = 20260101,
                     },
                 },
             })
-    return {"source": SAMPLE_SOURCE, "note": SAMPLE_SOURCE_NOTE, "orders": picked}
+    # COD orders first: the gate only ever acts on those, so a reviewer should
+    # land on a live decision rather than on a prepaid order the gate ignores.
+    picked.sort(key=lambda o: (not o["is_cod"],))
+    return {
+        "source": SAMPLE_SOURCE,
+        "note": SAMPLE_SOURCE_NOTE,
+        "tier_notes": tier_notes,
+        "orders": picked,
+    }
