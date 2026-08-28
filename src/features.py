@@ -191,14 +191,19 @@ class OutOfFoldTargetEncoder(BaseEstimator, TransformerMixin):
 
     def __init__(self, columns=("pincode", "pincode_prefix3", "city"),
                  smoothing: float = 30.0, n_splits: int = 5):
-        self.columns = list(columns)
+        # scikit-learn's clone contract: store constructor arguments unmodified.
+        self.columns = columns
         self.smoothing = smoothing
         self.n_splits = n_splits
+
+    @property
+    def _cols(self) -> list[str]:
+        return list(self.columns)
 
     def _fit_maps(self, X: pd.DataFrame, y: np.ndarray) -> dict:
         prior = float(np.mean(y))
         maps = {}
-        for col in self.columns:
+        for col in self._cols:
             grp = pd.DataFrame({"k": X[col].to_numpy(), "y": y}).groupby("k")["y"]
             agg = grp.agg(["sum", "count"])
             maps[col] = (agg["sum"] + prior * self.smoothing) / (
@@ -211,12 +216,12 @@ class OutOfFoldTargetEncoder(BaseEstimator, TransformerMixin):
         state = self._fit_maps(X, y)
         self.prior_ = state["prior"]
         self.maps_ = state["maps"]
-        self.feature_names_out_ = [f"{c}_te" for c in self.columns]
+        self.feature_names_out_ = [f"{c}_te" for c in self._cols]
         return self
 
     def transform(self, X: pd.DataFrame) -> pd.DataFrame:
         out = pd.DataFrame(index=X.index)
-        for col in self.columns:
+        for col in self._cols:
             out[f"{col}_te"] = (
                 X[col].map(self.maps_[col]).astype(float).fillna(self.prior_)
             )
@@ -228,7 +233,7 @@ class OutOfFoldTargetEncoder(BaseEstimator, TransformerMixin):
 
         out = pd.DataFrame(
             self.prior_, index=X.index,
-            columns=[f"{c}_te" for c in self.columns], dtype=float,
+            columns=[f"{c}_te" for c in self._cols], dtype=float,
         )
         n = len(X)
         n_splits = max(2, min(self.n_splits, n - 1))
@@ -236,7 +241,7 @@ class OutOfFoldTargetEncoder(BaseEstimator, TransformerMixin):
             np.arange(n)
         ):
             state = self._fit_maps(X.iloc[past_idx], y[past_idx])
-            for col in self.columns:
+            for col in self._cols:
                 vals = (
                     X.iloc[fold_idx][col]
                     .map(state["maps"][col])
@@ -248,4 +253,4 @@ class OutOfFoldTargetEncoder(BaseEstimator, TransformerMixin):
         return out
 
     def get_feature_names_out(self, input_features=None):
-        return np.asarray([f"{c}_te" for c in self.columns], dtype=object)
+        return np.asarray([f"{c}_te" for c in self._cols], dtype=object)

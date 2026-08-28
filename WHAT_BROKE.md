@@ -130,3 +130,51 @@ uncomparable across machines — the exact failure it is supposed to prevent.
 
 *Open items and deviations from `PRE_REGISTRATION.md` will be appended here as they
 occur. Nothing has deviated so far.*
+
+---
+
+## 8. `order_velocity_24h` is a dead feature and we kept it anyway
+
+**Symptom.** The univariate AUC screen in `02` put `order_velocity_24h` at **0.5008** —
+indistinguishable from a coin flip — despite being a real driver in the generator
+(`COEF["velocity"] = 0.30`).
+
+**Diagnosis.** Not a bug in the feature. **99.0% of orders have a velocity of zero.**
+The generator's order-arrival process spreads 50,000 orders over 20,000 customers and
+547 days, so same-customer bursts inside a 24-hour window are vanishingly rare. A
+feature that is constant for 99% of rows cannot move a marginal AUC however
+informative its tail is.
+
+**What we did not do.** Retune the arrival process to manufacture more bursts. That
+would have been fitting the data to make a feature look good, which is the exact
+failure mode this submission is supposed to be immune to.
+
+**Recovery.** Kept the feature — a tree can still split on the thin tail, and dropping
+columns for a weak *marginal* AUC is how interaction effects get discarded — and
+declared it weak in `02`, **before any model has seen it**. Same for
+`account_age_days` (AUC 0.508, largely collinear with `has_history`) and
+`addr_gibberish_score` (AUC 0.507).
+
+**Kept.** Declaring weak features in advance means a SHAP plot in `05` showing them
+contributing nothing reads as a confirmed prediction rather than a discovery. If they
+contribute nothing, they go in the honest exception list.
+
+---
+
+## 9. Two misleading lines of my own narrative in `02`
+
+**Symptom.** The customer-history cell printed `past_rto_rate` AUC twice — "on
+customers with history" and "on all train rows" — and both read **0.5646**.
+
+**Diagnosis.** `single_feature_auc` drops NaN rows, so "all train rows" silently
+became the same subset. The line claimed a comparison it was not making. Separately,
+the velocity commentary asserted "97%+ of orders have velocity 0" from memory; the
+actual figure is 99.0%.
+
+**Recovery.** The second number now median-imputes exactly as the pipeline does, which
+is what the model actually sees: **0.5646 with history → 0.5356 imputed across all
+rows**, a real 0.029 AUC cost of dilution. The velocity figure is now computed in the
+cell rather than typed.
+
+**Kept.** Any number in prose that is not computed in the cell that prints it is a
+number that will eventually be wrong.

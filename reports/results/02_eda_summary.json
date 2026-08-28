@@ -1,0 +1,89 @@
+{
+  "n_train": 35000,
+  "train_window": [
+    "2024-01-01",
+    "2025-01-22"
+  ],
+  "base_rate": 0.16962857142857143,
+  "cod_rto_rate": 0.2658427070314308,
+  "prepaid_rto_rate": 0.014480853922519967,
+  "first_order_share": 0.37525714285714284,
+  "design_matrix_shape": [
+    35000,
+    66
+  ],
+  "rate_by_tier": {
+    "metro": 0.1291,
+    "tier_1": 0.153,
+    "tier_2": 0.2127,
+    "tier_3": 0.2714
+  },
+  "cod_rate_by_value_band": {
+    "under_500": 0.2582,
+    "500_1000": 0.288,
+    "1000_plus": 0.2461
+  },
+  "rate_by_category": {
+    "fashion": 0.2867,
+    "footwear": 0.159,
+    "accessories": 0.1486,
+    "beauty": 0.1332,
+    "home_kitchen": 0.1089,
+    "electronics": 0.0644
+  },
+  "single_feature_auc": {
+    "is_cod": 0.7108,
+    "delivery_days_est": 0.591,
+    "tier_ordinal": 0.5803,
+    "past_rto_rate": 0.5646,
+    "order_value": 0.5624,
+    "log_order_value": 0.5624,
+    "discount_pct": 0.551,
+    "is_festive": 0.5425,
+    "past_rto_count": 0.5344,
+    "addr_quality_score": 0.5307,
+    "addr_token_count": 0.5296,
+    "addr_char_len": 0.5227,
+    "addr_comma_count": 0.5204,
+    "addr_digit_count": 0.5192,
+    "addr_has_house_number": 0.5189,
+    "discount_amount": 0.5145,
+    "addr_has_landmark": 0.5142,
+    "has_history": 0.5077,
+    "is_first_order": 0.5077,
+    "log_account_age": 0.5077,
+    "account_age_days": 0.5077,
+    "addr_gibberish_score": 0.5073,
+    "is_alternate_address": 0.5056,
+    "past_orders": 0.5037,
+    "order_velocity_24h": 0.5008
+  },
+  "target_encoding_leak": {
+    "train_auc_LEAKY": {
+      "pincode": 0.7031,
+      "pincode_prefix3": 0.6026,
+      "city": 0.6126
+    },
+    "train_auc_out_of_fold": {
+      "pincode": 0.5336,
+      "pincode_prefix3": 0.5478,
+      "city": 0.5552
+    },
+    "inflation": {
+      "pincode": 0.1695,
+      "pincode_prefix3": 0.0547,
+      "city": 0.0574
+    }
+  },
+  "top_vif": {
+    "is_first_order": Infinity,
+    "has_history": Infinity,
+    "addr_quality_score": 2085.37,
+    "addr_has_landmark": 579.12,
+    "addr_has_house_number": 519.07,
+    "addr_token_count": 146.93,
+    "addr_gibberish_score": 14.76,
+    "addr_char_len": 10.26
+  },
+  "bayes_ceiling_roc_auc": 0.8692053245851001
+}

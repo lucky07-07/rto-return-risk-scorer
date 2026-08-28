@@ -86,6 +86,43 @@ def test_fit_transform_differs_from_transform_on_training_rows():
     )
 
 
+def test_preprocessor_keeps_the_encoder_out_of_fold(small):
+    """The encoder must stay *inside* the ColumnTransformer.
+
+    Lifting it out -- encoding once, then feeding the result to a pipeline -- is
+    the leak `02` measures at ~0.17 AUC on pincode. This asserts the placement,
+    not just the class.
+    """
+    from src.features import add_engineered_features
+    from src.models import build_preprocessor, to_design_matrix
+
+    train = add_engineered_features(small["splits"]["train"]).reset_index(drop=True)
+    pre = build_preprocessor()
+
+    oof = to_design_matrix(pre, train, train["rto"], fit=True)
+    in_fold = to_design_matrix(pre, train)
+
+    te_cols = [c for c in oof.columns if c.endswith("_te")]
+    assert te_cols, "target-encoded columns missing from the design matrix"
+    for c in te_cols:
+        assert not np.allclose(oof[c], in_fold[c]), (
+            f"{c} is identical whether fitted or transformed -- the encoder is "
+            "not running out of fold inside the pipeline"
+        )
+
+
+def test_preprocessor_drops_raw_high_cardinality_keys(small):
+    """pincode / city / prefix must survive only as encodings, never raw."""
+    from src.features import add_engineered_features
+    from src.models import build_preprocessor, to_design_matrix
+
+    train = add_engineered_features(small["splits"]["train"]).reset_index(drop=True)
+    X = to_design_matrix(build_preprocessor(), train, train["rto"], fit=True)
+
+    assert not {"pincode", "city", "pincode_prefix3"} & set(X.columns)
+    assert X.notna().all().all(), "design matrix must be dense"
+
+
 def test_encoding_of_unseen_key_falls_back_to_prior():
     rng = np.random.default_rng(1)
     X = pd.DataFrame({"pincode": rng.choice(["110001", "560001"], 500)})
