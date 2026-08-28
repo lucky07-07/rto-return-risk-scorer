@@ -176,5 +176,68 @@ number that will eventually be wrong.
 
 ---
 
-*Open items and deviations from `PRE_REGISTRATION.md` are appended here as they occur.
-Nothing has deviated so far.*
+## 10. DEVIATION: `class_weight='balanced'` promised in `02`, dropped in `03`
+
+**What `02` said.** "`class_weight='balanced'` where the estimator supports it."
+
+**What `03` does.** No class weighting anywhere. This is a deviation from a stated
+plan, so it is recorded here with the evidence that overturned it.
+
+**The evidence.** Fitting three models both ways on the validation split:
+
+| Model | Δ PR-AUC | Δ Brier | mean predicted p (true base rate 0.155) |
+|---|---|---|---|
+| LightGBM | +0.0038 | **+0.0427** | 0.317 |
+| Logistic Regression | −0.0021 | **+0.0695** | 0.378 |
+| Random Forest | −0.0030 | **+0.0426** | 0.348 |
+
+**Diagnosis.** Reweighting shifts the intercept. It more than doubles the mean
+predicted probability against a true base rate of 0.155 and worsens Brier in every
+case, while buying essentially nothing in PR-AUC — LightGBM's +0.004 is inside
+bootstrap noise.
+
+That trade is backwards for this system. The operating point is chosen at a **rupee
+cost minimum** in `05`, which requires probabilities that mean what they say. We never
+operate at 0.5, so a balanced-looking confusion matrix *at* 0.5 is worth nothing;
+calibration is worth a great deal.
+
+**Recovery.** Class weighting removed from every entry, and `class_weight` pinned to
+`None` in the logistic-regression search space so `04` cannot reintroduce it. The
+threshold moves on the cost curve instead of the data moving under the threshold.
+
+**`PRE_REGISTRATION.md` impact: none.** It commits to "no resampling" and to Brier as
+a first-class metric; this change tightens compliance with both rather than loosening
+it.
+
+---
+
+## 11. No model beat logistic regression, and that is the finding
+
+**Symptom.** After benchmarking 11 entries: Extra Trees leads validation PR-AUC at
+0.4013, but a paired bootstrap against L2 logistic regression gives **zero models with
+a confidence interval clear of zero**. Seven are statistically indistinguishable from
+it; two (Decision Tree, HistGradientBoosting) are significantly *worse*. Logistic
+regression has the best CV mean (0.4145) and the best Brier (0.1094), and fits in
+0.5 seconds against CatBoost's 6.2.
+
+**Diagnosis.** Not a bug. The generator in `01` builds labels from an **additive
+log-odds model** plus Bernoulli noise, so a logistic regression on these features is
+close to the correct functional form by construction. The boosters have to discover
+that additive structure from data and pay variance for flexibility they do not need.
+
+**What we did not do.** Quietly drop the bootstrap and report "Extra Trees wins by
+0.0074". `PRE_REGISTRATION.md` commits to reporting this outcome if it occurred, and
+it occurred.
+
+**Scope, stated honestly.** This is a property of our synthetic generator, **not**
+evidence that gradient boosting is a poor choice for real RTO data — where courier ×
+corridor × seller × season interactions are exactly what a linear model misses.
+
+**Recovery.** Logistic regression carried into the finalist set on its merits, not as
+a courtesy: within noise of the best, fastest to fit, easiest to explain at checkout
+latency. Finalists span three families (linear, bagging, boosting) so `04`'s
+search-strategy comparison has something to compare across.
+
+---
+
+*Open items and deviations from `PRE_REGISTRATION.md` are appended here as they occur.*
