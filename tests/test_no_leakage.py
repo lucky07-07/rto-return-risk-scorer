@@ -253,3 +253,52 @@ def test_raw_order_log_has_no_true_probability(small):
 
     assert "_p_rto_true" not in RAW_COLUMNS
     assert not any(c.startswith("_") for c in RAW_COLUMNS)
+
+
+# ---------------------------------------------------------------------------
+# Domain interaction features
+# ---------------------------------------------------------------------------
+
+
+def test_interaction_features_are_row_local(small):
+    """Interactions must be derivable from one row -- no cross-row fitting.
+
+    If they were not, they would need the same out-of-fold treatment as target
+    encoding, and the ablation in 05 would have been measuring a leak.
+    """
+    from src.features import INTERACTION_FEATURES, add_engineered_features
+    from src.features import add_interaction_features
+
+    df = add_engineered_features(small["splits"]["train"]).reset_index(drop=True)
+    full = add_interaction_features(df)
+
+    # Shuffling and re-slicing must not change any row's interaction values.
+    shuffled = df.sample(frac=1.0, random_state=0)
+    from_shuffled = add_interaction_features(shuffled).loc[df.index]
+    for c in INTERACTION_FEATURES:
+        assert np.allclose(full[c], from_shuffled[c]), f"{c} depends on row order"
+
+    # And a single row alone must give the same answer as that row in context.
+    one = add_interaction_features(df.iloc[[7]])
+    for c in INTERACTION_FEATURES:
+        assert np.isclose(one[c].iat[0], full[c].iat[7]), f"{c} needs neighbours"
+
+
+def test_interaction_features_have_no_nan(small):
+    """past_rto_rate is NaN on first orders; its interaction must not propagate it."""
+    from src.features import INTERACTION_FEATURES, add_engineered_features
+    from src.features import add_interaction_features
+
+    df = add_interaction_features(
+        add_engineered_features(small["splits"]["train"]).reset_index(drop=True)
+    )
+    assert df[INTERACTION_FEATURES].isna().sum().sum() == 0
+
+
+def test_interactions_are_not_in_the_baseline_feature_set():
+    """The shipped model does not use them; the ablation in 05 rejected them."""
+    from src.features import INTERACTION_FEATURES
+    from src.models import model_input_columns
+
+    assert not set(INTERACTION_FEATURES) & set(model_input_columns())
+    assert set(INTERACTION_FEATURES) <= set(model_input_columns(interactions=True))

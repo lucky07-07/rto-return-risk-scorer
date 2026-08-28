@@ -35,6 +35,7 @@ from sklearn.tree import DecisionTreeClassifier
 
 from src.features import (
     CATEGORICAL_FEATURES,
+    INTERACTION_FEATURES,
     NUMERIC_FEATURES,
     OutOfFoldTargetEncoder,
 )
@@ -54,6 +55,7 @@ def build_preprocessor(
     scale: bool = False,
     te_smoothing: float = 30.0,
     te_n_splits: int = 5,
+    interactions: bool = False,
 ) -> ColumnTransformer:
     """Assemble the feature matrix from a processed split.
 
@@ -65,6 +67,12 @@ def build_preprocessor(
         model in the benchmark.
     te_smoothing, te_n_splits:
         Passed to :class:`~src.features.OutOfFoldTargetEncoder`.
+    interactions:
+        Include the domain interaction block from ``src.features``. Off by
+        default: the baseline this project reports does **not** use it, and the
+        ablation that decides whether it should lives in ``05``. When True, the
+        input frame must already carry those columns
+        (``src.features.add_interaction_features``).
 
     Notes
     -----
@@ -104,9 +112,11 @@ def build_preprocessor(
         ]
     )
 
+    numeric_cols = NUMERIC_FEATURES + (INTERACTION_FEATURES if interactions else [])
+
     return ColumnTransformer(
         [
-            ("num", numeric, NUMERIC_FEATURES),
+            ("num", numeric, numeric_cols),
             ("cat", categorical, CATEGORICAL_FEATURES),
             ("te", target_encoded, TARGET_ENCODING_SOURCES),
         ],
@@ -115,9 +125,14 @@ def build_preprocessor(
     )
 
 
-def model_input_columns() -> list[str]:
+def model_input_columns(interactions: bool = False) -> list[str]:
     """Every column the preprocessor reads, in the order it reads them."""
-    return NUMERIC_FEATURES + CATEGORICAL_FEATURES + TARGET_ENCODING_SOURCES
+    return (
+        NUMERIC_FEATURES
+        + (INTERACTION_FEATURES if interactions else [])
+        + CATEGORICAL_FEATURES
+        + TARGET_ENCODING_SOURCES
+    )
 
 
 def to_design_matrix(preprocessor, frame: pd.DataFrame, y=None, fit: bool = False):
@@ -127,7 +142,8 @@ def to_design_matrix(preprocessor, frame: pd.DataFrame, y=None, fit: bool = Fals
     target encodings for training rows. Anything evaluated later must go through
     ``fit=False``.
     """
-    X = frame[model_input_columns()]
+    cols = [c for c in model_input_columns(interactions=True) if c in frame.columns]
+    X = frame[cols]
     if fit:
         arr = preprocessor.fit_transform(X, y)
     else:
@@ -262,4 +278,89 @@ def build_pipeline(entry: Entry, **preprocessor_kwargs) -> Pipeline:
             ("pre", build_preprocessor(scale=entry.scale, **preprocessor_kwargs)),
             ("clf", entry.estimator),
         ]
+    )
+
+
+# ---------------------------------------------------------------------------
+# Blending
+# ---------------------------------------------------------------------------
+
+
+class BlendedClassifier:
+    """Fixed-weight probability blend of two already-fitted pipelines.
+
+    Deliberately not a stacking meta-learner. A meta-learner needs its own
+    held-out data to fit on, and the only untouched split left is the test set.
+    A single scalar weight chosen on validation costs one degree of freedom and
+    can be read off a curve, which is the right complexity for the evidence
+    available.
+
+    Blending on the probability scale (rather than rank-averaging) keeps the
+    output calibrated when both inputs are calibrated -- and calibration is what
+    the rupee threshold in ``05`` depends on.
+    """
+
+    def __init__(self, model_a, model_b, weight_a: float, name_a: str = "a",
+                 name_b: str = "b"):
+        self.model_a = model_a
+        self.model_b = model_b
+        self.weight_a = float(weight_a)
+        self.name_a = name_a
+        self.name_b = name_b
+
+    def predict_proba(self, X):
+        pa = self.model_a.predict_proba(X)[:, 1]
+        pb = self.model_b.predict_proba(X)[:, 1]
+        p = self.weight_a * pa + (1.0 - self.weight_a) * pb
+        return np.column_stack([1.0 - p, p])
+
+    def predict(self, X, threshold: float = 0.5):
+        return (self.predict_proba(X)[:, 1] >= threshold).astype(int)
+
+    def __repr__(self):
+        return (f"BlendedClassifier({self.weight_a:.2f} x {self.name_a} + "
+                f"{1 - self.weight_a:.2f} x {self.name_b})")
+
+
+def blend_weight_curve(y_true, p_a, p_b, metric_fn, grid=None) -> pd.DataFrame:
+    """Score every blend weight on a grid. The curve is the evidence, not the argmax.
+
+    A weight picked off a flat curve is a weight picked out of noise, and the
+    shape says which of those two you have.
+    """
+    if grid is None:
+        grid = np.round(np.arange(0.0, 1.001, 0.05), 3)
+    p_a = np.asarray(p_a, dtype=float)
+    p_b = np.asarray(p_b, dtype=float)
+    return pd.DataFrame([
+        {"weight_a": float(w), "score": float(metric_fn(y_true, w * p_a + (1 - w) * p_b))}
+        for w in grid
+    ])
+
+
+# ---------------------------------------------------------------------------
+# Probability calibration
+# ---------------------------------------------------------------------------
+
+
+def calibrated_pipeline(pipeline, method: str = "isotonic", n_splits: int = 3):
+    """Wrap a pipeline in cross-fitted probability calibration.
+
+    ``cv`` is a :class:`TimeSeriesSplit`, not the default stratified K-fold:
+    calibrating a time-ordered problem on folds that contain the future is the
+    same leak the rest of this project spends its effort avoiding. The whole
+    pipeline is refitted per fold, so the target encoder refits from that fold's
+    history too.
+
+    ``isotonic`` is non-parametric and can fix an arbitrary monotone distortion,
+    but needs data and will happily overfit a small calibration fold.
+    ``sigmoid`` (Platt) fits two parameters and is the safer choice when the
+    distortion is roughly logistic. ``05`` tries both and keeps whichever wins on
+    validation -- or neither, if the uncalibrated model is already better.
+    """
+    from sklearn.calibration import CalibratedClassifierCV
+    from sklearn.model_selection import TimeSeriesSplit
+
+    return CalibratedClassifierCV(
+        estimator=pipeline, method=method, cv=TimeSeriesSplit(n_splits=n_splits)
     )

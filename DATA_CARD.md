@@ -126,6 +126,10 @@ Raw plus causal history plus engineered features.
 | `addr_token_count`, `addr_char_len`, `addr_digit_count`, `addr_comma_count`, `addr_has_house_number`, `addr_has_landmark`, `addr_gibberish_score`, `addr_quality_score` | extracted from the string by `src.features.address_features` |
 | `tier_ordinal`, `log_order_value`, `discount_amount`, `log_account_age`, `is_first_order`, `pincode_prefix3` | row-local, fit nothing |
 
+A further ten **domain interaction** columns (`src.features.add_interaction_features`)
+are derived on demand rather than stored. They are opt-in, were ablated in `05`, and are
+**not** used by the shipped model — see `WHAT_BROKE.md` #16.
+
 Target encoding of pincode is **not** in these files. It is fitted out-of-fold inside
 the modelling folds in `03`, because that is the only place it can be done without
 leaking.

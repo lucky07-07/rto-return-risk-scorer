@@ -385,4 +385,113 @@ FN cost and margin — as the more defensible result.
 
 ---
 
+## 16. Four improvement attempts, none accepted
+
+**What was tried**, after the baseline was already established and reported. All five
+challengers were selected on **validation**; none saw the test set.
+
+| Challenger | val PR-AUC | Δ vs incumbent | 95% paired bootstrap CI | Verdict |
+|---|---|---|---|---|
+| *incumbent — CatBoost/FLAML* | **0.3970** | — | — | ships |
+| Blend 0.50×LogReg + 0.50×CatBoost | 0.3982 | +0.0013 | [−0.0033, +0.0055] | tie |
+| Calibrated (isotonic) | 0.3968 | −0.0002 | [−0.0137, +0.0135] | tie |
+| Calibrated (sigmoid) | 0.3931 | −0.0039 | [−0.0174, +0.0098] | tie |
+| Logistic Regression + interactions | 0.3929 | −0.0041 | [−0.0126, +0.0038] | tie |
+| CatBoost + interactions | 0.3924 | −0.0046 | [−0.0155, +0.0075] | tie |
+
+**Zero challengers had a confidence interval clear of zero.** The pre-registered rule
+sends a tie to the simpler, already-validated model, so the incumbent ships unchanged.
+
+**Three of these are informative rather than merely null:**
+
+**Interactions.** Ten domain interactions (`src/features.py::INTERACTION_FEATURES`) —
+COD×fashion, COD×impulse-band, address-quality×tier and so on. The prediction recorded
+*before* running: trees gain little because they can already represent products; logistic
+regression gains most because it cannot represent any. Observed on a like-for-like refit:
+logistic **−0.0010**, CatBoost **−0.0007**. Both slightly negative.
+
+The cause is structural and worth naming: **`01` builds labels that are additive in
+log-odds**, so there is no true interaction in the data to recover. This experiment was
+capped before it started. On real merchant data — courier × corridor × seller × season —
+the same block would have far more to find. The negative result is about our generator,
+not about the technique.
+
+**Calibration made the rupee cost worse.** Not just neutral — worse:
+
+| | own optimal threshold | val cost/order | ECE |
+|---|---|---|---|
+| uncalibrated (incumbent) | 0.370 | **₹27.30** | **0.0132** |
+| calibrated (isotonic) | 0.340 | ₹27.81 | 0.0133 |
+| calibrated (sigmoid) | 0.300 | ₹27.65 | 0.0350 |
+
+The incumbent's ECE was already 0.0132 — there was no distortion to remove — and
+cross-fitting a calibrator on three time-ordered folds costs more precision than it buys.
+Sigmoid actively hurt, nearly tripling ECE by forcing a two-parameter logistic shape onto
+a curve that did not need one.
+
+Worth stating because calibration is usually a free win: **here it was not**, and shipping
+it "because calibration is good practice" would have cost real money.
+
+**Blending.** The two inputs correlate at **0.990**. The whole weight grid spans
+0.3966–0.3982 in PR-AUC — a total range of 0.0016, well inside the bootstrap interval on
+either endpoint. Averaging two models that make the same mistakes on the same orders
+cannot fix those mistakes; the argmax weight of 0.50 is being read off noise.
+
+**Cost of the exercise:** ~15 minutes of compute and one figure
+(`reports/figures/05_challengers.png`, plus `05_blend_weight.png`). No metric moved. The
+value is in knowing the baseline was not leaving anything obvious on the table.
+
+---
+
+## 17. The test set was re-executed, and it did not matter
+
+**The risk.** The challenger experiments were added *after* the baseline had been scored
+on test and published. Had a challenger been accepted, `05` would have become a second,
+decision-informed read of the test set — exactly what `PRE_REGISTRATION.md` bought its
+credibility from avoiding.
+
+**What actually happened.** No challenger was accepted, so the model, threshold and tier
+cut points are unchanged, and the test cell re-executes an identical computation. Verified:
+`05_final_metrics.json`'s entire `test` block compares **equal** to the previously
+committed version.
+
+**So the test set informed no decision.** The protocol holds — not because we were careful
+afterwards, but because the validation-only rule produced a null result and there was
+nothing to swap in.
+
+**Had it gone the other way**, the honest report would have been a second read, with both
+models' test numbers published side by side. The notebook contains that branch and says so.
+
+---
+
+## 18. The model is weakest on the merchants most likely to deploy it
+
+**Symptom.** The population-shift study (`05` section 10) reweights the test set to seven
+plausible merchant profiles. The ordering is uncomfortable:
+
+| Profile | PR-AUC lift | Cost/order |
+|---|---|---|
+| Prepaid-led (35% COD) | **4.13×** | **₹16.24** |
+| Electronics-led catalogue | 3.28× | ₹17.47 |
+| Metro-heavy D2C | 2.74× | ₹23.42 |
+| *Generated mix (baseline)* | *2.62×* | *₹26.51* |
+| Small-town heavy | 2.36× | ₹32.24 |
+| Fashion-led catalogue | 2.17× | ₹34.00 |
+| **COD-dominant (85%)** | **1.97×** | **₹35.58** |
+
+**Diagnosis.** Not a paradox — arithmetic. `is_cod` is the single strongest feature (`02`
+measured it at AUC 0.711). A book that is almost entirely COD has had the model's best
+discriminator flattened out of it, leaving geography, address quality and basket, which
+are individually much weaker.
+
+**Why it matters.** A merchant with 85% COD is precisely who needs a COD gate. They get
+the *least* per-order help from it. The model still beats every no-model policy on all
+seven profiles, so it remains worth deploying — but a COD-heavy merchant should plan on
+the bottom of the reported range, not the headline figure.
+
+This was not visible before the population-shift experiment; the aggregate test number
+averages across a 62% COD book and hides it. Added to the exception list in `05`.
+
+---
+
 *Open items and deviations from `PRE_REGISTRATION.md` are appended here as they occur.*

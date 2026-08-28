@@ -5,6 +5,323 @@
     "strategy": "FLAML",
     "source": "tuned"
   },
+  "challenger_experiments": {
+    "run": [
+      "Logistic Regression + interactions",
+      "CatBoost + interactions",
+      "calibrated (sigmoid)",
+      "calibrated (isotonic)",
+      "blend 0.50xLogReg + 0.50xCatBoost"
+    ],
+    "results": [
+      {
+        "challenger": "Logistic Regression + interactions",
+        "pr_auc": 0.3929337640088291,
+        "roc_auc": 0.8091944264172553,
+        "brier": 0.1094329096305019,
+        "log_loss": 0.34434645104978645,
+        "mean_pred": 0.15435514720447555,
+        "base_rate": 0.155,
+        "boot_observed_delta": -0.004060465390583301,
+        "boot_ci_lo": -0.012600220744988146,
+        "boot_ci_hi": 0.003780643288564123,
+        "boot_p_two_sided": 0.337,
+        "boot_significant": false,
+        "verdict": "tie - CI spans 0"
+      },
+      {
+        "challenger": "CatBoost + interactions",
+        "pr_auc": 0.392418536081583,
+        "roc_auc": 0.8067536552777248,
+        "brier": 0.1098400864927255,
+        "log_loss": 0.3456101040328847,
+        "mean_pred": 0.1510848440512767,
+        "base_rate": 0.155,
+        "boot_observed_delta": -0.004575693317829421,
+        "boot_ci_lo": -0.015519146919761594,
+        "boot_ci_hi": 0.007541646459828231,
+        "boot_p_two_sided": 0.438,
+        "boot_significant": false,
+        "verdict": "tie - CI spans 0"
+      },
+      {
+        "challenger": "calibrated (sigmoid)",
+        "pr_auc": 0.3931240832736902,
+        "roc_auc": 0.8056490169879749,
+        "brier": 0.11150702292727122,
+        "log_loss": 0.3586603373406893,
+        "mean_pred": 0.16004436356274024,
+        "base_rate": 0.155,
+        "boot_observed_delta": -0.003870146125722229,
+        "boot_ci_lo": -0.017384538056679086,
+        "boot_ci_hi": 0.009778634174969441,
+        "boot_p_two_sided": 0.551,
+        "boot_significant": false,
+        "verdict": "tie - CI spans 0"
+      },
+      {
+        "challenger": "calibrated (isotonic)",
+        "pr_auc": 0.39683432365248017,
+        "roc_auc": 0.8065833937774385,
+        "brier": 0.1097158073601509,
+        "log_loss": 0.34554459554822997,
+        "mean_pred": 0.16262908411824487,
+        "base_rate": 0.155,
+        "boot_observed_delta": -0.000159905746932254,
+        "boot_ci_lo": -0.013676064552981957,
+        "boot_ci_hi": 0.013474633989953909,
+        "boot_p_two_sided": 0.964,
+        "boot_significant": false,
+        "verdict": "tie - CI spans 0"
+      },
+      {
+        "challenger": "blend 0.50xLogReg + 0.50xCatBoost",
+        "pr_auc": 0.3982446525151535,
+        "roc_auc": 0.8101561366673028,
+        "brier": 0.10917267598995445,
+        "log_loss": 0.34385893687221364,
+        "mean_pred": 0.15551365299195163,
+        "base_rate": 0.155,
+        "boot_observed_delta": 0.0012504231157410839,
+        "boot_ci_lo": -0.0032967683142592795,
+        "boot_ci_hi": 0.005464493365679075,
+        "boot_p_two_sided": 0.631,
+        "boot_significant": false,
+        "verdict": "tie - CI spans 0"
+      }
+    ],
+    "accepted": null,
+    "n_beating_baseline": 0,
+    "interaction_ablation": [
+      {
+        "model": "Logistic Regression",
+        "features": "base features",
+        "val_pr_auc": 0.39394140089056,
+        "val_roc_auc": 0.8096259591525101,
+        "val_brier": 0.10941123746886729
+      },
+      {
+        "model": "Logistic Regression",
+        "features": "+ interactions",
+        "val_pr_auc": 0.3929337640088291,
+        "val_roc_auc": 0.8091944264172553,
+        "val_brier": 0.1094329096305019
+      },
+      {
+        "model": "CatBoost",
+        "features": "base features",
+        "val_pr_auc": 0.3930982157578525,
+        "val_roc_auc": 0.8061853025386525,
+        "val_brier": 0.109875680488981
+      },
+      {
+        "model": "CatBoost",
+        "features": "+ interactions",
+        "val_pr_auc": 0.392418536081583,
+        "val_roc_auc": 0.8067536552777248,
+        "val_brier": 0.1098400864927255
+      }
+    ],
+    "calibration_cost": [
+      {
+        "variant": "uncalibrated (incumbent)",
+        "own_optimal_threshold": 0.37,
+        "val_cost_per_order": 27.300192499999998,
+        "ece": 0.01316549023809653,
+        "recall": 0.2967741935483871,
+        "precision": 0.4801670146137787
+      },
+      {
+        "variant": "calibrated (sigmoid)",
+        "own_optimal_threshold": 0.3,
+        "val_cost_per_order": 27.650265,
+        "ece": 0.03496543902918554,
+        "recall": 0.3987096774193548,
+        "precision": 0.4256198347107438
+      },
+      {
+        "variant": "calibrated (isotonic)",
+        "own_optimal_threshold": 0.34,
+        "val_cost_per_order": 27.807125,
+        "ece": 0.013311155182711053,
+        "recall": 0.38451612903225807,
+        "precision": 0.4269340974212034
+      }
+    ],
+    "blend_weight_curve": [
+      {
+        "weight_a": 0.0,
+        "score": 0.3969942293994124
+      },
+      {
+        "weight_a": 0.05,
+        "score": 0.3975512206435159
+      },
+      {
+        "weight_a": 0.1,
+        "score": 0.39759669931694436
+      },
+      {
+        "weight_a": 0.15,
+        "score": 0.3977273194586185
+      },
+      {
+        "weight_a": 0.2,
+        "score": 0.39768135766533147
+      },
+      {
+        "weight_a": 0.25,
+        "score": 0.39783260631701733
+      },
+      {
+        "weight_a": 0.3,
+        "score": 0.3981073245428928
+      },
+      {
+        "weight_a": 0.35,
+        "score": 0.39789983549989
+      },
+      {
+        "weight_a": 0.4,
+        "score": 0.3980307951703346
+      },
+      {
+        "weight_a": 0.45,
+        "score": 0.3981737578572203
+      },
+      {
+        "weight_a": 0.5,
+        "score": 0.3982446525151535
+      },
+      {
+        "weight_a": 0.55,
+        "score": 0.39809818103654193
+      },
+      {
+        "weight_a": 0.6,
+        "score": 0.3980051759836228
+      },
+      {
+        "weight_a": 0.65,
+        "score": 0.39804513561881183
+      },
+      {
+        "weight_a": 0.7,
+        "score": 0.3979373177560248
+      },
+      {
+        "weight_a": 0.75,
+        "score": 0.3979436285029336
+      },
+      {
+        "weight_a": 0.8,
+        "score": 0.39746508130716224
+      },
+      {
+        "weight_a": 0.85,
+        "score": 0.39710441309714317
+      },
+      {
+        "weight_a": 0.9,
+        "score": 0.39691701035195376
+      },
+      {
+        "weight_a": 0.95,
+        "score": 0.39669138167930085
+      },
+      {
+        "weight_a": 1.0,
+        "score": 0.3966185837109062
+      }
+    ],
+    "blend_best_weight": 0.5,
+    "test_reads": 2,
+    "note": "Baseline was scored on test before these experiments existed; this is the second read of the test set. See WHAT_BROKE.md."
+  },
+  "population_shift": [
+    {
+      "profile": "generated mix (baseline)",
+      "pr_auc": 0.38583614893692886,
+      "roc_auc": 0.8060109531076199,
+      "brier": 0.10586744736326541,
+      "base_rate": 0.1473,
+      "effective_n": 10000.0,
+      "pr_auc_lift": 2.6193900131495513,
+      "cost_per_order_inr": 26.511917500000006,
+      "lift_vs_generated": 1.0
+    },
+    {
+      "profile": "metro-heavy D2C",
+      "pr_auc": 0.3473567804036396,
+      "roc_auc": 0.8082892965644838,
+      "brier": 0.09474316043507326,
+      "base_rate": 0.12685740853700841,
+      "effective_n": 6659.721874700245,
+      "pr_auc_lift": 2.738167083890133,
+      "cost_per_order_inr": 23.42147185522482,
+      "lift_vs_generated": 1.0453453170945568
+    },
+    {
+      "profile": "small-town heavy",
+      "pr_auc": 0.44124906139149456,
+      "roc_auc": 0.7957476930431023,
+      "brier": 0.12619602920864217,
+      "base_rate": 0.18694797964153095,
+      "effective_n": 4862.005570200713,
+      "pr_auc_lift": 2.3602772398909093,
+      "cost_per_order_inr": 32.243214357517026,
+      "lift_vs_generated": 0.9010789642024003
+    },
+    {
+      "profile": "fashion-led catalogue",
+      "pr_auc": 0.43209378913879093,
+      "roc_auc": 0.7862777429546385,
+      "brier": 0.1332304184523604,
+      "base_rate": 0.19919727952674401,
+      "effective_n": 6331.582796239554,
+      "pr_auc_lift": 2.1691751522177714,
+      "cost_per_order_inr": 33.99738207633153,
+      "lift_vs_generated": 0.8281222503439103
+    },
+    {
+      "profile": "electronics-led catalogue",
+      "pr_auc": 0.2974007873573107,
+      "roc_auc": 0.8180482294184214,
+      "brier": 0.07199844048072795,
+      "base_rate": 0.09063008777395867,
+      "effective_n": 4246.429352435663,
+      "pr_auc_lift": 3.281479635097129,
+      "cost_per_order_inr": 17.467810049750224,
+      "lift_vs_generated": 1.2527648111292453
+    },
+    {
+      "profile": "COD-dominant (85%)",
+      "pr_auc": 0.3909716753318311,
+      "roc_auc": 0.736411091910743,
+      "brier": 0.14114273235486777,
+      "base_rate": 0.19826743880190867,
+      "effective_n": 8114.512257843303,
+      "pr_auc_lift": 1.9719409182586733,
+      "cost_per_order_inr": 35.58221217142966,
+      "lift_vs_generated": 0.7528244775918703
+    },
+    {
+      "profile": "prepaid-led (35% COD)",
+      "pr_auc": 0.3701055813205959,
+      "roc_auc": 0.8629086858747451,
+      "brier": 0.06592890508066232,
+      "base_rate": 0.08959486139911835,
+      "effective_n": 7705.021976233112,
+      "pr_auc_lift": 4.13087955649472,
+      "cost_per_order_inr": 16.242564684372816,
+      "lift_vs_generated": 1.577038751677821
+    }
+  ],
+  "covariate_shift_train_vs_val": {
+    "domain_auc": 0.6677224371428572,
+    "n_a": 35000,
+    "n_b": 5000
+  },
   "frozen_operating_point": {
     "model_key": "09_catboost__flaml",
     "threshold": 0.37,

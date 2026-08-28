@@ -254,3 +254,52 @@ class OutOfFoldTargetEncoder(BaseEstimator, TransformerMixin):
 
     def get_feature_names_out(self, input_features=None):
         return np.asarray([f"{c}_te" for c in self._cols], dtype=object)
+
+
+# ---------------------------------------------------------------------------
+# Domain interaction features (opt-in; baseline does not use them)
+# ---------------------------------------------------------------------------
+
+# Each of these encodes a specific claim about how COD returns actually happen,
+# not an automatic cross-product of every column pair. A tree can in principle
+# learn any of them from the base features; a logistic regression cannot learn
+# any of them. Whether they earn their place is settled by ablation on
+# validation in 05, not by assertion here.
+INTERACTION_FEATURES = [
+    "ix_cod_x_fashion",        # cash + the highest-return category: the canonical RTO
+    "ix_cod_x_impulse_band",   # cash + the Rs500-1,000 band the published curve peaks in
+    "ix_cod_x_discount",       # cash + a heavy discount: the impulse-buy signature
+    "ix_cod_x_first_order",    # cash + no history to judge the customer on
+    "ix_cod_x_tier",           # cash risk grows as you leave the metros
+    "ix_cod_x_past_rto",       # a known returner, paying cash again
+    "ix_cod_x_log_value",      # cash at high ticket: refusal at the door costs more
+    "ix_addr_quality_x_tier",  # a vague address hurts far more outside a metro
+    "ix_eta_x_tier",           # a long ETA into a small town: time to change your mind
+    "ix_discount_x_fashion",   # discounted fashion: size-gamble buying
+]
+
+
+def add_interaction_features(df: pd.DataFrame) -> pd.DataFrame:
+    """Add the domain interactions. Row-local, fits nothing, no leakage surface.
+
+    ``past_rto_rate`` is NaN on a customer's first order, so its interaction is
+    filled with 0 -- meaning "no prior-return signal", which is what
+    ``is_first_order`` already says. The pair stays consistent.
+    """
+    out = df.copy()
+    cod = out["is_cod"].astype(float)
+    tier = out["tier_ordinal"].astype(float)
+
+    out["ix_cod_x_fashion"] = cod * (out["category"] == "fashion").astype(float)
+    out["ix_cod_x_impulse_band"] = cod * (out["order_value_band"] == "500_1000").astype(float)
+    out["ix_cod_x_discount"] = cod * out["discount_pct"].astype(float)
+    out["ix_cod_x_first_order"] = cod * out["is_first_order"].astype(float)
+    out["ix_cod_x_tier"] = cod * tier
+    out["ix_cod_x_past_rto"] = cod * out["past_rto_rate"].astype(float).fillna(0.0)
+    out["ix_cod_x_log_value"] = cod * out["log_order_value"].astype(float)
+    out["ix_addr_quality_x_tier"] = (1.0 - out["addr_quality_score"].astype(float)) * tier
+    out["ix_eta_x_tier"] = out["delivery_days_est"].astype(float) * tier
+    out["ix_discount_x_fashion"] = (
+        out["discount_pct"].astype(float) * (out["category"] == "fashion").astype(float)
+    )
+    return out

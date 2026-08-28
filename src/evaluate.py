@@ -499,3 +499,102 @@ def segment_report(df: pd.DataFrame, y_true, y_prob, threshold: float,
             "mean_pred_vs_actual": float(ps.mean() - ys.mean()),
         })
     return pd.DataFrame(rows)
+
+
+# ---------------------------------------------------------------------------
+# Synthetic-to-real distribution shift
+# ---------------------------------------------------------------------------
+
+# Merchant profiles a real deployment would plausibly meet. Our generator fixed
+# one order mix; a real merchant has a different one, and the question is whether
+# the model survives that. Each profile is a target distribution over a single
+# observable dimension -- deliberately one at a time, so a degradation can be
+# attributed to something specific rather than to a vague "different data".
+POPULATION_PROFILES = {
+    "generated mix (baseline)": {},
+    "metro-heavy D2C": {"pincode_tier": {"metro": 0.60, "tier_1": 0.30,
+                                         "tier_2": 0.08, "tier_3": 0.02}},
+    "small-town heavy": {"pincode_tier": {"metro": 0.08, "tier_1": 0.22,
+                                          "tier_2": 0.35, "tier_3": 0.35}},
+    "fashion-led catalogue": {"category": {"fashion": 0.60, "footwear": 0.15,
+                                           "beauty": 0.10, "accessories": 0.10,
+                                           "home_kitchen": 0.03, "electronics": 0.02}},
+    "electronics-led catalogue": {"category": {"electronics": 0.55, "home_kitchen": 0.20,
+                                               "accessories": 0.10, "beauty": 0.05,
+                                               "fashion": 0.07, "footwear": 0.03}},
+    "COD-dominant (85%)": {"is_cod": {True: 0.85, False: 0.15}},
+    "prepaid-led (35% COD)": {"is_cod": {True: 0.35, False: 0.65}},
+}
+
+
+def profile_weights(df: pd.DataFrame, profile: dict) -> np.ndarray:
+    """Importance weights that reshape ``df`` to a target marginal distribution.
+
+    ``w_i = target_share(group_i) / observed_share(group_i)``, normalised to mean 1.
+    Reweighting rather than resampling keeps every row in play, so the estimate
+    does not lose the tail of a small group entirely.
+    """
+    w = np.ones(len(df), dtype=float)
+    for col, target in profile.items():
+        observed = df[col].value_counts(normalize=True)
+        ratio = df[col].map(
+            {k: (v / observed.get(k, np.nan)) for k, v in target.items()}
+        ).astype(float)
+        # Groups the profile does not mention keep weight 0: the profile is a
+        # complete distribution over that column, not a partial nudge.
+        w *= ratio.fillna(0.0).to_numpy()
+    total = w.sum()
+    return w * (len(w) / total) if total > 0 else w
+
+
+def weighted_metrics(y_true, y_prob, weights) -> dict:
+    """PR-AUC / ROC-AUC / Brier under importance weights.
+
+    ``average_precision_score`` and ``roc_auc_score`` both take sample_weight, so
+    the reweighted population is scored directly rather than via a resample that
+    would add sampling noise on top of the shift being measured.
+    """
+    y_true = np.asarray(y_true).astype(int)
+    y_prob = np.asarray(y_prob, dtype=float)
+    w = np.asarray(weights, dtype=float)
+    keep = w > 0
+    y_true, y_prob, w = y_true[keep], y_prob[keep], w[keep]
+    if len(np.unique(y_true)) < 2:
+        return {"pr_auc": np.nan, "roc_auc": np.nan, "brier": np.nan,
+                "base_rate": np.nan, "effective_n": 0.0}
+    base = float(np.average(y_true, weights=w))
+    return {
+        "pr_auc": float(average_precision_score(y_true, y_prob, sample_weight=w)),
+        "roc_auc": float(roc_auc_score(y_true, y_prob, sample_weight=w)),
+        "brier": float(np.average((y_prob - y_true) ** 2, weights=w)),
+        "base_rate": base,
+        # Kish effective sample size: reweighting hard costs precision, and a
+        # profile that leans on 200 real rows should not be read like 5,000.
+        "effective_n": float(w.sum() ** 2 / np.sum(w**2)),
+    }
+
+
+def covariate_shift_auc(frame_a: pd.DataFrame, frame_b: pd.DataFrame,
+                        columns, seed: int = 20260101) -> dict:
+    """How separable are two feature distributions? A domain-classifier probe.
+
+    Fit a model to predict which split a row came from. AUC near 0.5 means the
+    two are indistinguishable; AUC near 1.0 means a model trained on one is
+    extrapolating on the other. This is the standard cheap test for covariate
+    shift, and it is the closest we can get to quantifying synthetic-to-real
+    drift without real data -- here it measures TIME drift between splits, which
+    is the only real shift we actually possess.
+    """
+    from sklearn.ensemble import HistGradientBoostingClassifier
+    from sklearn.model_selection import cross_val_predict
+
+    a = frame_a[list(columns)].apply(pd.to_numeric, errors="coerce")
+    b = frame_b[list(columns)].apply(pd.to_numeric, errors="coerce")
+    X = pd.concat([a, b], ignore_index=True)
+    y = np.r_[np.zeros(len(a)), np.ones(len(b))]
+
+    clf = HistGradientBoostingClassifier(max_iter=120, random_state=seed)
+    p = cross_val_predict(clf, X, y, cv=3, method="predict_proba")[:, 1]
+    auc = float(roc_auc_score(y, p))
+
+    return {"domain_auc": auc, "n_a": len(a), "n_b": len(b)}

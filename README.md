@@ -165,6 +165,54 @@ What breaks under shift is *calibration*, not ranking — and the fix is one lin
 arithmetic ([`prior_shift_correction`](src/evaluate.py)): a merchant who knows their own
 RTO rate rescales the scores before thresholding. No retraining, no new labels.
 
+### Order-mix shift — seven merchant profiles
+
+Prevalence shift moves P(y); this moves P(x). The test set is importance-weighted to
+seven plausible merchant profiles (`05` section 10, `05_final_metrics.json`):
+
+| Profile | PR-AUC lift | Cost/order |
+|---|---|---|
+| Prepaid-led (35% COD) | 4.13× | ₹16.24 |
+| Electronics-led catalogue | 3.28× | ₹17.47 |
+| Metro-heavy D2C | 2.74× | ₹23.42 |
+| *Generated mix (baseline)* | *2.62×* | *₹26.51* |
+| Small-town heavy | 2.36× | ₹32.24 |
+| Fashion-led catalogue | 2.17× | ₹34.00 |
+| COD-dominant (85%) | 1.97× | ₹35.58 |
+
+Every profile stays well above 1.0×, so the model never becomes useless on a plausible
+reweighting. **This is a lower bound on robustness, not evidence of transfer** — it
+reweights our own synthetic population and cannot test whether P(rto | x) matches
+reality. Courier effects, seller effects, true interactions and adversarial drift remain
+untestable without real labelled data.
+
+### Improvement attempts — five challengers, none accepted
+
+Run after the baseline was established, all selected on **validation** only
+(`05` sections 2a–2e, `reports/results/05_final_metrics.json`):
+
+| Challenger | val PR-AUC | Δ vs incumbent | 95% bootstrap CI | Verdict |
+|---|---|---|---|---|
+| *incumbent — CatBoost/FLAML* | **0.3970** | — | — | **ships** |
+| Blend 0.50×LogReg + 0.50×CatBoost | 0.3982 | +0.0013 | [−0.0033, +0.0055] | tie |
+| Calibrated (isotonic) | 0.3968 | −0.0002 | [−0.0137, +0.0135] | tie |
+| Calibrated (sigmoid) | 0.3931 | −0.0039 | [−0.0174, +0.0098] | tie |
+| Logistic Regression + interactions | 0.3929 | −0.0041 | [−0.0126, +0.0038] | tie |
+| CatBoost + interactions | 0.3924 | −0.0046 | [−0.0155, +0.0075] | tie |
+
+Zero had a CI clear of zero, so the tie-breaks-to-simpler rule kept the incumbent. Two
+results are worth more than their null status:
+
+**Calibration made the rupee cost worse**, not merely neutral — ₹27.30 → ₹27.65 (sigmoid)
+and ₹27.81 (isotonic) per order on validation. The incumbent's ECE was already 0.0132, so
+there was no distortion to remove, and cross-fitting a calibrator on three time-ordered
+folds costs more precision than it buys. Shipping calibration "because it's good practice"
+would have cost money.
+
+**The interaction experiment was capped before it started.** `01` builds labels that are
+additive in log-odds, so there is no true interaction in the data to recover. That is a
+fact about our generator, not about the technique.
+
 ### What we found that was not flattering
 
 - **No model beat logistic regression.** Across 11 benchmarked entries, a paired
@@ -172,6 +220,10 @@ RTO rate rescales the scores before thresholding. No retraining, no new labels.
   `PRE_REGISTRATION.md` committed to reporting it.
 - **Hyperparameter tuning made the held-out score worse** (−0.004 PR-AUC), while
   improving the CV objective it was optimising. The tuning objective was overfitted.
+- **The model is weakest on the merchants most likely to deploy it.** A COD-dominant
+  book (85% COD) gets 1.97× lift at ₹35.58/order; a prepaid-led one gets 4.13× at
+  ₹16.24. `is_cod` is the strongest single feature, so an all-COD book removes the best
+  discriminator. Still beats every no-model policy — but plan on the bottom of the range.
 - Three engineered features are near-useless, declared weak in `02` *before* any model
   saw them, and confirmed by SHAP in `05`.
 

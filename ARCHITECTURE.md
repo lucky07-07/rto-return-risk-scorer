@@ -2,9 +2,8 @@
 
 **Return-Risk Scorer · Razorpay AI Buildathon 2026 · Track 02**
 
-> Status: `01` complete and executed. `02`–`05` in progress; sections marked
-> *(planned)* describe the design fixed in [`PRE_REGISTRATION.md`](PRE_REGISTRATION.md)
-> and are not yet built. Nothing in this document is a claim about results.
+> Status: `01`–`05` complete and executed. Nothing in this document is a claim about
+> results; those live in `reports/results/` and are summarised in the README.
 
 ---
 
@@ -26,11 +25,12 @@
    src/features.py ──► engineered features + out-of-fold target encoding
                              │
                              ▼
-   src/models.py ────► 11-model benchmark        (03, planned)
-   src/tuning.py ────► Optuna vs FLAML           (04, planned)
-   src/costs.py ─────► rupee cost model          (05, planned)
-   src/evaluate.py ──► metrics, calibration,     (05, planned)
-                       prevalence shift, SHAP
+   src/models.py ────► 11-model benchmark        (03)
+   src/tuning.py ────► Optuna vs FLAML           (04)
+   src/costs.py ─────► rupee cost model          (05)
+   src/evaluate.py ──► metrics, calibration,     (05)
+                       prevalence + order-mix
+                       shift, SHAP
                              │
                              ▼
                     models/ + reports/{figures,results}
@@ -49,11 +49,11 @@ notebooks lives in `src/` and is imported, never redefined.
 | Module | Owns | Status |
 |---|---|---|
 | `src/generate.py` | Geographic skeleton, tier rules, customer population, order stream, the 12-cell calibration solve, labels, causal history, chronological split, SHA-256 manifest | **done** |
-| `src/features.py` | Address-quality extraction, row-local engineered features, `OutOfFoldTargetEncoder`, the feature/forbidden column lists | **done** |
-| `src/models.py` | The 11 benchmark estimators and their shared preprocessing pipeline | planned (03) |
-| `src/tuning.py` | Shared search space; Optuna and FLAML drivers on identical budget/seed | planned (04) |
-| `src/costs.py` | FN/FP rupee cost, threshold sweep, three-tier cut points | planned (05) |
-| `src/evaluate.py` | Metric bundle, reliability diagram, prevalence resampling, SHAP reasons | planned (05) |
+| `src/features.py` | Address-quality extraction, row-local engineered features, opt-in domain interaction block, `OutOfFoldTargetEncoder`, the feature/forbidden column lists | **done** |
+| `src/models.py` | The 11 benchmark estimators, the shared preprocessing pipeline, fixed-weight blending, cross-fitted calibration | **done** |
+| `src/tuning.py` | Shared search space; Optuna and FLAML drivers on identical budget/seed | **done** |
+| `src/costs.py` | FN/FP rupee cost, threshold sweep, three-tier cut points | **done** |
+| `src/evaluate.py` | Metric bundle, reliability diagram, prevalence resampling, order-mix reweighting, covariate-shift probe, SHAP reasons | **done** |
 
 ## 3. The two decisions the design is built around
 
@@ -92,13 +92,14 @@ return the labels themselves.
 | Address quality | token count, char length, digit count, comma count, house-number flag, landmark flag, gibberish score, composite quality score |
 | Customer history | `past_orders`, `past_rto_count`, `past_rto_rate`, `has_history`, `is_first_order`, `account_age_days`, `log_account_age`, `order_velocity_24h` |
 | Order | `order_value`, `log_order_value`, `order_value_band`, `category`, `discount_pct`, `discount_amount`, `is_cod`, `is_festive`, `is_alternate_address` |
+| Interactions *(opt-in, **not** in the shipped model)* | ten domain products in `src.features.INTERACTION_FEATURES`; ablated in `05` and rejected — see `WHAT_BROKE.md` #16 |
 | Fulfilment | `delivery_days_est` |
 
 Explicitly **not** features, and asserted so: identifiers, customer name, phone, raw
 address text, timestamps, `payment_mode` (redundant with `is_cod`), and every generator
 latent (`_pincode_rto_prior`, `_reliability_z`, `_address_quality`, `_p_rto_true`).
 
-## 5. Serving path *(planned)*
+## 5. Serving path *(designed; `api/` and `app/` are still scaffold stubs)*
 
 ```
 POST /score  { order attributes }
