@@ -225,3 +225,89 @@ def test_sample_orders_are_labelled_as_validation_not_test(client):
     assert "test" not in body["source"]
     assert "VALIDATION" in body["note"]
     assert {o["label"] for o in body["orders"]} == VALID_LABELS
+
+
+# ---------------------------------------------------------------------------
+# The plain-language layer must never break the technical response
+# ---------------------------------------------------------------------------
+
+
+class _Resp429:
+    """A Gemini rate-limit response, which the free tier hits readily."""
+
+    status_code = 429
+    text = "quota exceeded"
+
+    def raise_for_status(self):
+        import httpx
+        raise httpx.HTTPStatusError("429", request=None, response=None)
+
+    def json(self):
+        return {}
+
+
+@pytest.mark.parametrize(
+    "failure, label",
+    [
+        (lambda *a, **k: _Resp429(), "rate limited"),
+        (__import__("httpx").ConnectTimeout("timed out"), "timeout"),
+        (__import__("httpx").ConnectError("refused"), "connection refused"),
+        (ValueError("malformed response"), "malformed response"),
+    ],
+)
+def test_score_survives_every_gemini_failure(client, samples, failure, label):
+    """A broken explanation layer must degrade the wording, never the decision.
+
+    The free Gemini tier rate-limits readily, so this is the common path in a
+    live demo rather than an edge case. Every mode has to come back as a full
+    200 carrying the real probability and a readable summary.
+    """
+    from unittest.mock import patch
+
+    payload = _payload(samples, "REVIEW")
+    with patch("httpx.post", side_effect=failure):
+        r = client.post("/score", json=payload)
+
+    assert r.status_code == 200, f"{label} produced HTTP {r.status_code}"
+    body = r.json()
+    assert body["summary_source"] == "template"
+    assert len(body["plain_language_summary"]) > 60
+    assert body["rto_probability"] > 0
+    assert body["action"] in VALID_ACTIONS
+
+
+def test_summary_falls_back_when_no_key_is_configured():
+    """No key is a supported configuration, not an error."""
+    from unittest.mock import patch
+
+    import src.interpret as interpret
+
+    result = {
+        "rto_probability": 0.4, "expected_loss_if_shipped_inr": 80.0,
+        "action": "disable_cod", "reasons": ["paying cash on delivery"],
+        "is_cod": True,
+    }
+    with patch.object(interpret, "_load_env_key", return_value=None):
+        out = interpret.plain_language_summary(result)
+
+    assert out["source"] == "template"
+    assert len(out["text"]) > 60
+    assert "40%" in out["text"]
+
+
+def test_prepaid_summary_never_recommends_a_cod_action():
+    """A prepaid order has no cash-on-delivery decision to make."""
+    from unittest.mock import patch
+
+    import src.interpret as interpret
+
+    result = {
+        "rto_probability": 0.016, "expected_loss_if_shipped_inr": 3.2,
+        "action": "allow_cod", "reasons": ["paying online up front"], "is_cod": False,
+    }
+    with patch.object(interpret, "_load_env_key", return_value=None):
+        text = interpret.plain_language_summary(result)["text"].lower()
+
+    assert "already paid" in text
+    assert "offer cash on delivery" not in text
+    assert "let the customer pay cash on delivery" not in text
