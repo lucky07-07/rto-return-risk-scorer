@@ -4,6 +4,13 @@
 
 Razorpay AI Buildathon 2026 · Track 02, AI Risk Manager
 
+[![Live demo](https://img.shields.io/badge/demo-live-2ea44f)](https://cod-return-risk-scorer.onrender.com/)
+[![Tests](https://github.com/lucky07-07/rto-return-risk-scorer/actions/workflows/tests.yml/badge.svg)](https://github.com/lucky07-07/rto-return-risk-scorer/actions/workflows/tests.yml)
+[![Python 3.13](https://img.shields.io/badge/python-3.13-blue)](https://www.python.org/)
+[![License: MIT](https://img.shields.io/badge/licence-MIT-blue)](LICENSE)
+
+FastAPI · CatBoost · scikit-learn · SHAP · Docker
+
 ### ▶ [Try it live](https://cod-return-risk-scorer.onrender.com/)
 
 <https://cod-return-risk-scorer.onrender.com/>
@@ -81,6 +88,24 @@ up, the app writes the same summary itself and carries on working.
 ![Architecture, from generated data through to the merchant-facing page](docs/architecture_diagram.png)
 
 Editable source, [`docs/architecture_diagram.svg`](docs/architecture_diagram.svg)
+
+## Built with
+
+| Stage | Stack |
+|---|---|
+| Data generation | pandas, NumPy, SciPy, Faker |
+| Modelling | scikit-learn, CatBoost, XGBoost, LightGBM |
+| Tuning | Optuna, FLAML |
+| Explainability | SHAP, and Google Gemini for the plain-English layer |
+| Charts | matplotlib, seaborn |
+| Service | FastAPI, Pydantic, Uvicorn, joblib |
+| Interface | HTML, CSS and JavaScript; Streamlit as an alternative UI |
+| Deployment | Docker, Render |
+| Tests | pytest, 55 tests |
+
+Python 3.13, exact versions pinned in [`requirements.txt`](requirements.txt). The container
+installs the shorter [`deploy/requirements-serve.txt`](deploy/requirements-serve.txt) instead,
+which drops Jupyter, Optuna, FLAML, Streamlit and matplotlib.
 
 ---
 
@@ -311,8 +336,6 @@ This system reads order details and returns a number, a recommendation and an ex
 It has no code path that captures a payment, issues a refund, blocks an account, cancels an
 order or contacts a customer. The recommendation is advice. Acting on it is the seller's
 decision. There is nothing here that could be repurposed to commit fraud.
-
----
 
 ---
 

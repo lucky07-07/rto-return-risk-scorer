@@ -54,6 +54,8 @@ notebooks lives in `src/` and is imported, never redefined.
 | `src/tuning.py` | Shared search space; Optuna and FLAML drivers on identical budget/seed | **done** |
 | `src/costs.py` | FN/FP rupee cost, threshold sweep, three-tier cut points | **done** |
 | `src/evaluate.py` | Metric bundle, reliability diagram, prevalence resampling, order-mix reweighting, covariate-shift probe, SHAP reasons | **done** |
+| `src/serving.py` | The single scoring path shared by the API and the Streamlit app: artifact loading, feature frame assembly, tier decision, SHAP reasons | **done** |
+| `src/interpret.py` | Plain-English rewrite of a scored order via the Gemini API, with a deterministic template fallback when the key is absent or the call fails | **done** |
 
 ## 3. The two decisions the design is built around
 
@@ -99,15 +101,23 @@ Explicitly **not** features, and asserted so: identifiers, customer name, phone,
 address text, timestamps, `payment_mode` (redundant with `is_cod`), and every generator
 latent (`_pincode_rto_prior`, `_reliability_z`, `_address_quality`, `_p_rto_true`).
 
-## 5. Serving path *(designed; `api/` and `app/` are still scaffold stubs)*
+## 5. Serving path
+
+Built and deployed. FastAPI serves both the JSON API and the one-page merchant UI from
+a single Uvicorn process, in a Docker container on Render.
 
 ```
 POST /score  { order attributes }
    →  feature assembly (same src/features.py code path as training)
-   →  calibrated probability
-   →  three-tier recommendation from the cost-optimal cut points
-   →  { risk_score, tier, reasons[], model_version }
+   →  predicted probability from the frozen artifact
+   →  expected rupee loss, and a three-tier recommendation from the
+      cost-optimal cut points fixed on validation
+   →  { risk_score, expected_loss_inr, tier, reasons[], model_version }
 ```
+
+The probability is used as the model emits it. Post-hoc recalibration was tested —
+sigmoid and isotonic — and both were rejected because each raised cost per order; see
+`reports/results/05_final_metrics.json`. Expected calibration error is 0.012 on test.
 
 The API returns a score, a tier and human-readable reasons derived from SHAP. It
 performs no action.

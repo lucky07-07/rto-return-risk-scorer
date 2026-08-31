@@ -1,0 +1,35 @@
+name: tests
+
+# The calibration guard is the reason this runs in CI rather than by hand: if the
+# generated data ever drifts away from the published Indian RTO rates, the build
+# fails instead of a human forgetting to check a printout.
+
+on:
+  push:
+    branches: [master]
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  pytest:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+          cache: pip
+          cache-dependency-path: requirements.txt
+
+      # --only-binary matters: without it pip tries to build CatBoost from
+      # source and fails after several minutes.
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install --only-binary=:all: -r requirements.txt
+
+      - name: Run the test suite
+        run: pytest -q

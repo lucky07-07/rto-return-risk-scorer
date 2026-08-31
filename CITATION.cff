@@ -1,0 +1,26 @@
+cff-version: 1.2.0
+title: "Return-Risk Scorer: a cost-sensitive RTO risk model for Indian cash-on-delivery orders"
+message: "If you refer to this work, please cite it as below."
+type: software
+authors:
+  - family-names: Kumar
+    given-names: Anil
+repository-code: "https://github.com/lucky07-07/rto-return-risk-scorer"
+url: "https://cod-return-risk-scorer.onrender.com/"
+abstract: >-
+  A return-to-origin (RTO) risk scorer for Indian cash-on-delivery e-commerce
+  orders. Orders are scored before dispatch and converted into an expected rupee
+  loss and a three-tier recommendation, with SHAP reasons attached to every
+  prediction. Trained on synthetic orders built on the real India Post pincode
+  directory and calibrated against published Indian return statistics; no claim
+  of validation on real merchant data is made.
+keywords:
+  - return-to-origin
+  - cash-on-delivery
+  - risk-scoring
+  - cost-sensitive-learning
+  - model-calibration
+  - explainable-ai
+license: MIT
+version: "1.0.0"
+date-released: "2026-08-31"
