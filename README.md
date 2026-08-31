@@ -46,26 +46,6 @@ You give it an order. It gives you four things, in plain English.
 
 It only ever advises. It never blocks a customer, takes money, or contacts anyone.
 
-## Demo
-
-Three real orders, scored by the live model. Switch between them in the dropdown.
-
-**A risky order, so the tool says ask for online payment**
-
-![The tool showing a BLOCK decision on a high-risk fashion order](docs/screenshots/block.png)
-
-**A middling order, so the tool says allow cash on delivery but add a fee**
-
-![The tool showing a REVIEW decision on a moderate-risk order](docs/screenshots/review.png)
-
-**A safe order, so the tool lets it through**
-
-![The tool showing an ALLOW decision on a low-risk order](docs/screenshots/allow.png)
-
-The blue box at the top of each is written by Google Gemini, which turns the raw numbers
-into something a shop owner can read. If the Gemini key is missing or its free quota is used
-up, the app writes the same summary itself and carries on working.
-
 ## Results
 
 ### What it's worth
@@ -355,7 +335,7 @@ slightly worse on unseen orders. Both findings are reported in full rather than 
 
 ---
 
-## Defence only
+## Defence-only, by construction
 
 This system reads order details and returns a number, a recommendation and an explanation.
 
@@ -396,6 +376,26 @@ dropping the real model.
 
 **Hugging Face Spaces now needs a paid plan** for Docker Spaces on any tier, including
 free CPU. Only Static Spaces are free, and those cannot run a Python service.
+
+## Demo
+
+Three real orders, scored by the live model. Switch between them in the dropdown.
+
+**A risky order, so the tool says ask for online payment**
+
+![The tool showing a BLOCK decision on a high-risk fashion order](docs/screenshots/block.png)
+
+**A middling order, so the tool says allow cash on delivery but add a fee**
+
+![The tool showing a REVIEW decision on a moderate-risk order](docs/screenshots/review.png)
+
+**A safe order, so the tool lets it through**
+
+![The tool showing an ALLOW decision on a low-risk order](docs/screenshots/allow.png)
+
+The blue box at the top of each is written by Google Gemini, which turns the raw numbers
+into something a shop owner can read. If the Gemini key is missing or its free quota is used
+up, the app writes the same summary itself and carries on working.
 
 ---
 
