@@ -295,20 +295,44 @@ The section above is deliberately free of jargon. The rigour is all still here.
 | [`DATA_CARD.md`](DATA_CARD.md) | What is real, what is generated, the full schema, and every limitation |
 | [`ARCHITECTURE.md`](ARCHITECTURE.md) | System design, feature groups and the reproducibility contract |
 | [`WHAT_BROKE.md`](WHAT_BROKE.md) | 21 entries on what went wrong and how it was fixed, including the embarrassing ones |
+| [`reports/METRICS.md`](reports/METRICS.md) | **Every metric the project produced**, in ten tables, generated from `reports/results/` |
 
-**Headline numbers**, all backed by files in `reports/results/`.
+**Headline numbers**, all backed by files in `reports/results/`. The full set, including
+per-segment, per-fold and per-profile breakdowns, is in [`reports/METRICS.md`](reports/METRICS.md).
 
 | | Test set | Validation |
 |---|---|---|
 | PR-AUC | 0.386, which is 2.62× the no-skill floor | 0.397 |
 | ROC-AUC | 0.806 | 0.810 |
 | Brier score | 0.106 | 0.109 |
+| Log loss | 0.336 | 0.344 |
 | Expected calibration error | 0.012 | 0.013 |
-| Precision, recall, F1 | 0.458, 0.269, 0.339 | — |
+| Mean predicted probability | 0.151, against a 0.147 base rate | 0.157, against 0.155 |
+| Precision / recall / F1 **at the frozen 0.37** | 0.458 / 0.269 / 0.339 | 0.480 / 0.297 / 0.367 |
+| Flag rate at 0.37 | 0.0864 | 0.0958 |
 
-The Bayes ceiling for this data is a PR-AUC of 0.555, so the model captures about 62% of
-what is achievable. A score above the ceiling would be evidence of a leak rather than of
-skill, and the notebooks assert on it.
+The Bayes ceiling for this data is a PR-AUC of 0.555, so the model captures about 70% of it
+on test. A score above the ceiling would be evidence of a leak rather than of skill, and the
+notebooks assert on it.
+
+**The operating point is 0.37, not 0.5.** That row above is often misread, so here is the
+whole trade-off on the test set. The threshold was fixed on validation before the test set
+was opened; this table is descriptive and changed no decision.
+
+| Threshold | Precision | Recall | F1 | Flag rate | Cost / order |
+|---|---|---|---|---|---|
+| 0.20 | 0.333 | 0.688 | 0.449 | 30.47% | ₹32.53 |
+| 0.25 | 0.356 | 0.574 | 0.440 | 23.74% | ₹29.32 |
+| 0.30 | 0.377 | 0.439 | 0.406 | 17.15% | ₹27.81 |
+| 0.35 | 0.432 | 0.312 | 0.362 | 10.65% | ₹26.70 |
+| **0.37 ← frozen** | **0.458** | **0.269** | **0.339** | **8.64%** | **₹26.51** |
+| 0.40 | 0.477 | 0.193 | 0.275 | 5.95% | ₹27.13 |
+| 0.50 | 0.565 | 0.050 | 0.092 | 1.31% | ₹28.60 |
+
+F1 peaks near 0.25, but F1 is not the objective here — rupees are, and the cost minimum sits
+at 0.37. The 0.5 default flags barely 1% of orders and costs ₹20,835 more across 10,000
+orders, which is the whole argument for choosing a threshold on cost rather than habit.
+Full sweep, both splits, in [`reports/results/05_threshold_sweep.csv`](reports/results/05_threshold_sweep.csv).
 
 **Method in brief.**
 
