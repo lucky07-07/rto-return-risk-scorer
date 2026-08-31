@@ -1,140 +1,157 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="1400" height="665" viewBox="0 0 1400 665"
      font-family="Arial, Helvetica, sans-serif">
+  <!--
+    Colour is redundant with shape here, per IEEE figure guidance: the offline and
+    online phases are already separated by a dashed vs solid container, and the
+    optional path by a dashed border and dashed arrows. Hue only reinforces that,
+    so the figure survives greyscale printing and common colour-vision deficiencies.
+    Palette is muted (Okabe-Ito derived) rather than saturated.
+  -->
   <defs>
     <marker id="a" markerWidth="7" markerHeight="7" refX="6.4" refY="3.5" orient="auto">
-      <path d="M0,0.5 L6.6,3.5 L0,6.5 z" fill="#1a1a1a"/>
+      <path d="M0,0.5 L6.6,3.5 L0,6.5 z" fill="#33383d"/>
     </marker>
     <marker id="ad" markerWidth="7" markerHeight="7" refX="6.4" refY="3.5" orient="auto">
-      <path d="M0,0.5 L6.6,3.5 L0,6.5 z" fill="#1a1a1a"/>
+      <path d="M0,0.5 L6.6,3.5 L0,6.5 z" fill="#6b7076"/>
     </marker>
     <style>
-      .num  { font-size:11px; font-weight:700; fill:#1a1a1a }
-      .ttl  { font-size:12.5px; font-weight:700; fill:#1a1a1a }
-      .bdy  { font-size:10.5px; fill:#333333 }
-      .tech { font-size:9.5px; fill:#666666; font-family:'Consolas','Courier New',monospace }
-      .ph   { font-size:11px; font-weight:700; fill:#1a1a1a; letter-spacing:0.6px }
-      .lg   { font-size:10px; fill:#333333 }
-      .cap  { font-family:'Times New Roman', Times, serif; font-size:13px; fill:#000000 }
+      .num   { font-size:11px; font-weight:700 }
+      .ttl   { font-size:12.5px; font-weight:700; fill:#16232e }
+      .bdy   { font-size:10.5px; fill:#3c4650 }
+      .tech  { font-size:9.5px; fill:#6f7780; font-family:'Consolas','Courier New',monospace }
+      .ph    { font-size:11px; font-weight:700; letter-spacing:0.6px }
+      .lg    { font-size:10px; fill:#3c4650 }
+      .cap   { font-family:'Times New Roman', Times, serif; font-size:13px; fill:#000000 }
+      .boxA  { fill:#eef4fa; stroke:#2f6690; stroke-width:1.2 }
+      .boxB  { fill:#edf6f2; stroke:#2f7d68; stroke-width:1.2 }
+      .numA  { fill:#2f6690 }
+      .numB  { fill:#2f7d68 }
+      .arrow { stroke:#33383d; stroke-width:1.2; fill:none }
+      .dash  { stroke:#6b7076; stroke-width:1.2; fill:none; stroke-dasharray:5 3 }
     </style>
   </defs>
 
   <rect width="1400" height="665" fill="#ffffff"/>
 
   <!-- ============ PHASE A: OFFLINE ============ -->
-  <rect x="26" y="26" width="1348" height="266" fill="none" stroke="#1a1a1a"
-        stroke-width="1" stroke-dasharray="6 4"/>
-  <text class="ph" x="46" y="48">A.  OFFLINE &#8212; RUN ONCE  (Jupyter notebooks 01&#8211;05)</text>
+  <rect x="26" y="26" width="1348" height="266" fill="#f9fbfd" stroke="#2f6690"
+        stroke-width="1.2" stroke-dasharray="6 4" rx="3"/>
+  <text class="ph" x="46" y="48" style="fill:#1f4a68">A.  OFFLINE &#8212; RUN ONCE  (Jupyter notebooks 01&#8211;05)</text>
 
-  <g stroke="#1a1a1a" stroke-width="1" fill="#ffffff">
-    <rect x="54"   y="66" width="238" height="102"/>
-    <rect x="326"  y="66" width="238" height="102"/>
-    <rect x="598"  y="66" width="238" height="102"/>
-    <rect x="870"  y="66" width="238" height="102"/>
-    <rect x="1142" y="66" width="212" height="102"/>
+  <g class="boxA">
+    <rect x="54"   y="66" width="238" height="102" rx="3"/>
+    <rect x="326"  y="66" width="238" height="102" rx="3"/>
+    <rect x="598"  y="66" width="238" height="102" rx="3"/>
+    <rect x="870"  y="66" width="238" height="102" rx="3"/>
+    <rect x="1142" y="66" width="212" height="102" rx="3"/>
   </g>
 
-  <text class="num" x="70" y="90">(1)</text>
+  <text class="num numA" x="70" y="90">(1)</text>
   <text class="ttl" x="98" y="90">Data generation</text>
   <text class="bdy" x="70" y="114">50,000 orders on the real</text>
   <text class="bdy" x="70" y="130">India Post pincode map</text>
   <text class="tech" x="70" y="153">pandas · NumPy · Faker</text>
 
-  <text class="num" x="342" y="90">(2)</text>
+  <text class="num numA" x="342" y="90">(2)</text>
   <text class="ttl" x="370" y="90">Feature engineering</text>
   <text class="bdy" x="342" y="114">32 features; pincode risk</text>
   <text class="bdy" x="342" y="130">encoded out of fold</text>
   <text class="tech" x="342" y="153">scikit-learn</text>
 
-  <text class="num" x="614" y="90">(3)</text>
+  <text class="num numA" x="614" y="90">(3)</text>
   <text class="ttl" x="642" y="90">Model selection</text>
   <text class="bdy" x="614" y="114">11 estimators on identical</text>
   <text class="bdy" x="614" y="130">expanding time folds (k = 5)</text>
   <text class="tech" x="614" y="153">CatBoost · XGBoost · LightGBM</text>
 
-  <text class="num" x="886" y="90">(4)</text>
+  <text class="num numA" x="886" y="90">(4)</text>
   <text class="ttl" x="914" y="90">Hyperparameter tuning</text>
   <text class="bdy" x="886" y="114">Two searchers, one shared</text>
   <text class="bdy" x="886" y="130">wall-clock budget</text>
   <text class="tech" x="886" y="153">Optuna · FLAML</text>
 
-  <text class="num" x="1158" y="90">(5)</text>
+  <text class="num numA" x="1158" y="90">(5)</text>
   <text class="ttl" x="1186" y="90">Evaluation</text>
   <text class="bdy" x="1158" y="114">Held-out test read once,</text>
   <text class="bdy" x="1158" y="130">at frozen cut-offs</text>
   <text class="tech" x="1158" y="153">SHAP · matplotlib</text>
 
-  <line x1="292"  y1="117" x2="319"  y2="117" stroke="#1a1a1a" stroke-width="1" marker-end="url(#a)"/>
-  <line x1="564"  y1="117" x2="591"  y2="117" stroke="#1a1a1a" stroke-width="1" marker-end="url(#a)"/>
-  <line x1="836"  y1="117" x2="863"  y2="117" stroke="#1a1a1a" stroke-width="1" marker-end="url(#a)"/>
-  <line x1="1108" y1="117" x2="1135" y2="117" stroke="#1a1a1a" stroke-width="1" marker-end="url(#a)"/>
+  <line x1="292"  y1="117" x2="319"  y2="117" class="arrow" marker-end="url(#a)"/>
+  <line x1="564"  y1="117" x2="591"  y2="117" class="arrow" marker-end="url(#a)"/>
+  <line x1="836"  y1="117" x2="863"  y2="117" class="arrow" marker-end="url(#a)"/>
+  <line x1="1108" y1="117" x2="1135" y2="117" class="arrow" marker-end="url(#a)"/>
 
-  <!-- artifact: double border marks the frozen boundary object -->
-  <rect x="1142" y="196" width="212" height="76" fill="#ffffff" stroke="#1a1a1a" stroke-width="1"/>
-  <rect x="1146" y="200" width="204" height="68" fill="none" stroke="#1a1a1a" stroke-width="1"/>
-  <text class="num" x="1158" y="222">(6)</text>
+  <!-- artifact: double border AND a distinct hue mark the frozen boundary object -->
+  <rect x="1142" y="196" width="212" height="76" fill="#fdf5e6" stroke="#a9762a"
+        stroke-width="1.2" rx="3"/>
+  <rect x="1146" y="200" width="204" height="68" fill="none" stroke="#a9762a"
+        stroke-width="1" rx="2"/>
+  <text class="num" x="1158" y="222" fill="#8a5f1e">(6)</text>
   <text class="ttl" x="1186" y="222">Model artifact</text>
   <text class="bdy" x="1158" y="244">Fitted pipeline and its</text>
   <text class="bdy" x="1158" y="260">frozen decision cut-offs</text>
-  <line x1="1248" y1="168" x2="1248" y2="191" stroke="#1a1a1a" stroke-width="1" marker-end="url(#a)"/>
+  <line x1="1248" y1="168" x2="1248" y2="191" class="arrow" marker-end="url(#a)"/>
 
   <!-- ============ PHASE B: ONLINE ============ -->
-  <rect x="26" y="322" width="1348" height="230" fill="none" stroke="#1a1a1a" stroke-width="1"/>
-  <text class="ph" x="46" y="344">B.  ONLINE &#8212; PER REQUEST  (Docker container on Render)</text>
+  <rect x="26" y="322" width="1348" height="230" fill="#f8fcfa" stroke="#2f7d68"
+        stroke-width="1.2" rx="3"/>
+  <text class="ph" x="46" y="344" style="fill:#1f5c4c">B.  ONLINE &#8212; PER REQUEST  (Docker container on Render)</text>
 
-  <g stroke="#1a1a1a" stroke-width="1" fill="#ffffff">
-    <rect x="1142" y="362" width="212" height="102"/>
-    <rect x="870"  y="362" width="238" height="102"/>
-    <rect x="598"  y="362" width="238" height="102"/>
+  <g class="boxB">
+    <rect x="1142" y="362" width="212" height="102" rx="3"/>
+    <rect x="870"  y="362" width="238" height="102" rx="3"/>
+    <rect x="598"  y="362" width="238" height="102" rx="3"/>
   </g>
 
-  <text class="num" x="1158" y="386">(7)</text>
+  <text class="num numB" x="1158" y="386">(7)</text>
   <text class="ttl" x="1186" y="386">Scoring service</text>
   <text class="bdy" x="1158" y="410">Risk, expected loss, tier</text>
   <text class="bdy" x="1158" y="426">and SHAP reasons</text>
   <text class="tech" x="1158" y="449">CatBoost · SHAP · joblib</text>
 
-  <text class="num" x="886" y="386">(8)</text>
+  <text class="num numB" x="886" y="386">(8)</text>
   <text class="ttl" x="914" y="386">HTTP interface</text>
   <text class="bdy" x="886" y="410">Validates and scores one</text>
   <text class="bdy" x="886" y="426">order per request</text>
   <text class="tech" x="886" y="449">FastAPI · Pydantic · Uvicorn</text>
 
-  <text class="num" x="614" y="386">(9)</text>
+  <text class="num numB" x="614" y="386">(9)</text>
   <text class="ttl" x="642" y="386">Merchant interface</text>
   <text class="bdy" x="614" y="410">One page: the decision and</text>
   <text class="bdy" x="614" y="426">the reasons behind it</text>
   <text class="tech" x="614" y="449">HTML · CSS · JavaScript</text>
 
-  <line x1="1248" y1="272" x2="1248" y2="357" stroke="#1a1a1a" stroke-width="1" marker-end="url(#a)"/>
-  <line x1="1142" y1="413" x2="1113" y2="413" stroke="#1a1a1a" stroke-width="1" marker-end="url(#a)"/>
-  <line x1="870"  y1="413" x2="841"  y2="413" stroke="#1a1a1a" stroke-width="1" marker-end="url(#a)"/>
+  <line x1="1248" y1="272" x2="1248" y2="357" class="arrow" marker-end="url(#a)"/>
+  <line x1="1142" y1="413" x2="1113" y2="413" class="arrow" marker-end="url(#a)"/>
+  <line x1="870"  y1="413" x2="841"  y2="413" class="arrow" marker-end="url(#a)"/>
 
-  <!-- optional branch: dashed border AND dashed arrows -->
-  <rect x="326" y="362" width="238" height="102" fill="#ffffff" stroke="#1a1a1a"
-        stroke-width="1" stroke-dasharray="5 3"/>
-  <text class="num" x="342" y="386">(10)</text>
+  <!-- optional branch: dashed border, dashed arrows, and a deliberately neutral fill -->
+  <rect x="326" y="362" width="238" height="102" fill="#f7f8f9" stroke="#6b7076"
+        stroke-width="1.2" stroke-dasharray="5 3" rx="3"/>
+  <text class="num" x="342" y="386" fill="#5a6068">(10)</text>
   <text class="ttl" x="376" y="386">Explanation layer</text>
   <text class="bdy" x="342" y="410">Plain-English rewrite, with</text>
   <text class="bdy" x="342" y="426">a deterministic fallback</text>
   <text class="tech" x="342" y="449">Gemini API</text>
-  <path d="M1248,464 L1248,502 L445,502 L445,469" fill="none" stroke="#1a1a1a"
-        stroke-width="1" stroke-dasharray="5 3" marker-end="url(#ad)"/>
-  <line x1="564" y1="413" x2="593" y2="413" stroke="#1a1a1a" stroke-width="1"
-        stroke-dasharray="5 3" marker-end="url(#ad)"/>
+  <path d="M1248,464 L1248,502 L445,502 L445,469" class="dash" marker-end="url(#ad)"/>
+  <line x1="564" y1="413" x2="593" y2="413" class="dash" marker-end="url(#ad)"/>
 
   <!-- legend -->
-  <g transform="translate(46,582)">
-    <line x1="0" y1="6" x2="34" y2="6" stroke="#1a1a1a" stroke-width="1" marker-end="url(#a)"/>
+  <g transform="translate(46,610)">
+    <line x1="0" y1="6" x2="34" y2="6" class="arrow" marker-end="url(#a)"/>
     <text class="lg" x="42" y="10">required path</text>
-    <line x1="170" y1="6" x2="204" y2="6" stroke="#1a1a1a" stroke-width="1"
-          stroke-dasharray="5 3" marker-end="url(#ad)"/>
+    <line x1="170" y1="6" x2="204" y2="6" class="dash" marker-end="url(#ad)"/>
     <text class="lg" x="212" y="10">optional path, degrades gracefully</text>
+    <rect x="450" y="0" width="22" height="12" class="boxA" rx="2"/>
+    <text class="lg" x="480" y="10">offline stage</text>
+    <rect x="588" y="0" width="22" height="12" class="boxB" rx="2"/>
+    <text class="lg" x="618" y="10">online stage</text>
     <g>
-      <rect x="450" y="0" width="22" height="12" fill="#ffffff" stroke="#1a1a1a" stroke-width="1"/>
-      <rect x="453" y="3" width="16" height="6" fill="none" stroke="#1a1a1a" stroke-width="1"/>
+      <rect x="720" y="0" width="22" height="12" fill="#fdf5e6" stroke="#a9762a" stroke-width="1.2" rx="2"/>
+      <rect x="723" y="3" width="16" height="6" fill="none" stroke="#a9762a" stroke-width="1"/>
     </g>
-    <text class="lg" x="480" y="10">frozen artifact</text>
+    <text class="lg" x="750" y="10">frozen artifact</text>
   </g>
 
-  <text class="cap" x="26" y="638">Fig. 1.  End-to-end architecture of the cash-on-delivery return-risk scorer. The offline phase (A) freezes a single artifact; the online phase (B) only consumes it.</text>
+  <text class="cap" x="26" y="654">Fig. 1.  End-to-end architecture of the cash-on-delivery return-risk scorer. The offline phase (A) freezes a single artifact; the online phase (B) only consumes it.</text>
 </svg>

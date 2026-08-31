@@ -46,23 +46,6 @@ You give it an order. It gives you four things, in plain English.
 
 It only ever advises. It never blocks a customer, takes money, or contacts anyone.
 
-## What it's worth
-
-Tested on 10,000 orders the model had never seen.
-
-| | |
-|---|---|
-| **Money saved** | **₹29,481** against the best you could do with no model at all |
-| **Cost of a lazy cut-off** | **₹20,835** — what you'd waste flagging at 50% out of habit instead of at the point where money is actually minimised |
-| **Catches** | About 1 in 4 of the orders that would have come back |
-| **When it flags an order** | It's right a little under half the time |
-
-That last row matters and it's stated deliberately. This is not a tool that is right every
-time. It's a tool that, once you add up the wins and the mistakes in rupees, leaves the
-seller better off.
-
----
-
 ## Demo
 
 Three real orders, scored by the live model. Switch between them in the dropdown.
@@ -83,36 +66,27 @@ The blue box at the top of each is written by Google Gemini, which turns the raw
 into something a shop owner can read. If the Gemini key is missing or its free quota is used
 up, the app writes the same summary itself and carries on working.
 
-## How it fits together
-
-![Architecture, from generated data through to the merchant-facing page](docs/architecture_diagram.png)
-
-Editable source, [`docs/architecture_diagram.svg`](docs/architecture_diagram.svg)
-
-## Built with
-
-| Stage | Stack |
-|---|---|
-| Data generation | pandas, NumPy, SciPy, Faker |
-| Modelling | scikit-learn, CatBoost, XGBoost, LightGBM |
-| Tuning | Optuna, FLAML |
-| Explainability | SHAP, and Google Gemini for the plain-English layer |
-| Charts | matplotlib, seaborn |
-| Service | FastAPI, Pydantic, Uvicorn, joblib |
-| Interface | HTML, CSS and JavaScript; Streamlit as an alternative UI |
-| Deployment | Docker, Render |
-| Tests | pytest, 55 tests |
-
-Python 3.13, exact versions pinned in [`requirements.txt`](requirements.txt). The container
-installs the shorter [`deploy/requirements-serve.txt`](deploy/requirements-serve.txt) instead,
-which drops Jupyter, Optuna, FLAML, Streamlit and matplotlib.
-
----
-
 ## Results
 
-Four charts that carry most of the argument. Every one is produced by the notebooks and
-lives in [`reports/figures/`](reports/figures/), nothing here was drawn by hand.
+### What it's worth
+
+Tested on 10,000 orders the model had never seen.
+
+| | |
+|---|---|
+| **Money saved** | **₹29,481** against the best you could do with no model at all |
+| **Cost of a lazy cut-off** | **₹20,835** — what you'd waste flagging at 50% out of habit instead of at the point where money is actually minimised |
+| **Catches** | About 1 in 4 of the orders that would have come back |
+| **When it flags an order** | It's right a little under half the time |
+
+That last row matters and it's stated deliberately. This is not a tool that is right every
+time. It's a tool that, once you add up the wins and the mistakes in rupees, leaves the
+seller better off.
+
+### The charts that carry the argument
+
+Each one is produced by the notebooks and lives in
+[`reports/figures/`](reports/figures/). Nothing here was drawn by hand.
 
 ### Did any model actually beat a simple one?
 
@@ -157,6 +131,71 @@ arithmetic corrects it, cutting the worst-case waste from **₹16.42 to ₹0.08 
 A second study reweights the test set to seven different merchant profiles, from
 metro-heavy to small-town, fashion-led to electronics-led. Ranking stays useful in all
 seven, and the full table is in [`WHAT_BROKE.md`](WHAT_BROKE.md) #18.
+
+### Every metric, in full
+
+**Headline numbers**, all backed by files in `reports/results/`. The full set, including
+per-segment, per-fold and per-profile breakdowns, is in [`reports/METRICS.md`](reports/METRICS.md).
+
+| | Test set | Validation |
+|---|---|---|
+| PR-AUC | 0.386, which is 2.62× the no-skill floor | 0.397 |
+| ROC-AUC | 0.806 | 0.810 |
+| Brier score | 0.106 | 0.109 |
+| Log loss | 0.336 | 0.344 |
+| Expected calibration error | 0.012 | 0.013 |
+| Mean predicted probability | 0.151, against a 0.147 base rate | 0.157, against 0.155 |
+| Precision / recall / F1 **at the frozen 0.37** | 0.458 / 0.269 / 0.339 | 0.480 / 0.297 / 0.367 |
+| Flag rate at 0.37 | 0.0864 | 0.0958 |
+
+The Bayes ceiling for this data is a PR-AUC of 0.555, so the model captures about 70% of it
+on test. A score above the ceiling would be evidence of a leak rather than of skill, and the
+notebooks assert on it.
+
+**The operating point is 0.37, not 0.5.** That row above is often misread, so here is the
+whole trade-off on the test set. The threshold was fixed on validation before the test set
+was opened; this table is descriptive and changed no decision.
+
+| Threshold | Precision | Recall | F1 | Flag rate | Cost / order |
+|---|---|---|---|---|---|
+| 0.20 | 0.333 | 0.688 | 0.449 | 30.47% | ₹32.53 |
+| 0.25 | 0.356 | 0.574 | 0.440 | 23.74% | ₹29.32 |
+| 0.30 | 0.377 | 0.439 | 0.406 | 17.15% | ₹27.81 |
+| 0.35 | 0.432 | 0.312 | 0.362 | 10.65% | ₹26.70 |
+| **0.37 ← frozen** | **0.458** | **0.269** | **0.339** | **8.64%** | **₹26.51** |
+| 0.40 | 0.477 | 0.193 | 0.275 | 5.95% | ₹27.13 |
+| 0.50 | 0.565 | 0.050 | 0.092 | 1.31% | ₹28.60 |
+
+F1 peaks near 0.25, but F1 is not the objective here — rupees are, and the cost minimum sits
+at 0.37. The 0.5 default flags barely 1% of orders and costs ₹20,835 more across 10,000
+orders, which is the whole argument for choosing a threshold on cost rather than habit.
+Full sweep, both splits, in [`reports/results/05_threshold_sweep.csv`](reports/results/05_threshold_sweep.csv).
+
+---
+
+## How it fits together
+
+![Architecture, from generated data through to the merchant-facing page](docs/architecture_diagram.png)
+
+Editable source, [`docs/architecture_diagram.svg`](docs/architecture_diagram.svg)
+
+## Built with
+
+| Stage | Stack |
+|---|---|
+| Data generation | pandas, NumPy, SciPy, Faker |
+| Modelling | scikit-learn, CatBoost, XGBoost, LightGBM |
+| Tuning | Optuna, FLAML |
+| Explainability | SHAP, and Google Gemini for the plain-English layer |
+| Charts | matplotlib, seaborn |
+| Service | FastAPI, Pydantic, Uvicorn, joblib |
+| Interface | HTML, CSS and JavaScript; Streamlit as an alternative UI |
+| Deployment | Docker, Render |
+| Tests | pytest, 55 tests |
+
+Python 3.13, exact versions pinned in [`requirements.txt`](requirements.txt). The container
+installs the shorter [`deploy/requirements-serve.txt`](deploy/requirements-serve.txt) instead,
+which drops Jupyter, Optuna, FLAML, Streamlit and matplotlib.
 
 ---
 
@@ -252,6 +291,37 @@ tests/          Calibration, leakage, API and fallback tests
 
 ---
 
+## For the technically minded
+
+Everything above is deliberately free of jargon. The rigour is all still here, in these documents.
+
+| Document | What's in it |
+|---|---|
+| [`PRE_REGISTRATION.md`](PRE_REGISTRATION.md) | Metrics, cost model and thresholds fixed **before** any model was trained, then git-tagged |
+| [`DATA_CARD.md`](DATA_CARD.md) | What is real, what is generated, the full schema, and every limitation |
+| [`ARCHITECTURE.md`](ARCHITECTURE.md) | System design, feature groups and the reproducibility contract |
+| [`WHAT_BROKE.md`](WHAT_BROKE.md) | 21 entries on what went wrong and how it was fixed, including the embarrassing ones |
+| [`reports/METRICS.md`](reports/METRICS.md) | **Every metric the project produced**, in ten tables, generated from `reports/results/` |
+
+**Method in brief.**
+
+- 50,000 orders split by time, 70/10/20. Never randomly, which would leak the future.
+- Generated data calibrated against published Indian statistics and enforced by test rather
+  than asserted in prose. `pytest tests/test_calibration.py` fails the build if the return
+  rates drift.
+- The order-value curve is deliberately non-monotonic. Risk peaks in the ₹500 to ₹1,000 band
+  and falls above ₹1,000, which is what the published data shows and the opposite of the
+  intuitive assumption.
+- Pincode history is target-encoded out of fold. Doing it the naive way inflates the
+  apparent score by 0.17 AUC, which notebook `02` measures rather than assumes.
+- 11 models benchmarked on identical folds, then Optuna and FLAML compared head to head on
+  an identical wall-clock budget.
+- The test set was opened once, at settings frozen on validation beforehand.
+- Performance is reported across the full 18% to 35% return range seen across Indian cities,
+  so behaviour under a shifted base rate is measured rather than assumed.
+
+---
+
 ## What it gets wrong
 
 Nothing here is hidden. Each limitation gets a plain-English version first.
@@ -282,74 +352,6 @@ them and should be treated as provisional.
 **A simple model did just as well.**
 Plain logistic regression matched everything more sophisticated. Tuning made the model
 slightly worse on unseen orders. Both findings are reported in full rather than buried.
-
----
-
-## For the technically minded
-
-The section above is deliberately free of jargon. The rigour is all still here.
-
-| Document | What's in it |
-|---|---|
-| [`PRE_REGISTRATION.md`](PRE_REGISTRATION.md) | Metrics, cost model and thresholds fixed **before** any model was trained, then git-tagged |
-| [`DATA_CARD.md`](DATA_CARD.md) | What is real, what is generated, the full schema, and every limitation |
-| [`ARCHITECTURE.md`](ARCHITECTURE.md) | System design, feature groups and the reproducibility contract |
-| [`WHAT_BROKE.md`](WHAT_BROKE.md) | 21 entries on what went wrong and how it was fixed, including the embarrassing ones |
-| [`reports/METRICS.md`](reports/METRICS.md) | **Every metric the project produced**, in ten tables, generated from `reports/results/` |
-
-**Headline numbers**, all backed by files in `reports/results/`. The full set, including
-per-segment, per-fold and per-profile breakdowns, is in [`reports/METRICS.md`](reports/METRICS.md).
-
-| | Test set | Validation |
-|---|---|---|
-| PR-AUC | 0.386, which is 2.62× the no-skill floor | 0.397 |
-| ROC-AUC | 0.806 | 0.810 |
-| Brier score | 0.106 | 0.109 |
-| Log loss | 0.336 | 0.344 |
-| Expected calibration error | 0.012 | 0.013 |
-| Mean predicted probability | 0.151, against a 0.147 base rate | 0.157, against 0.155 |
-| Precision / recall / F1 **at the frozen 0.37** | 0.458 / 0.269 / 0.339 | 0.480 / 0.297 / 0.367 |
-| Flag rate at 0.37 | 0.0864 | 0.0958 |
-
-The Bayes ceiling for this data is a PR-AUC of 0.555, so the model captures about 70% of it
-on test. A score above the ceiling would be evidence of a leak rather than of skill, and the
-notebooks assert on it.
-
-**The operating point is 0.37, not 0.5.** That row above is often misread, so here is the
-whole trade-off on the test set. The threshold was fixed on validation before the test set
-was opened; this table is descriptive and changed no decision.
-
-| Threshold | Precision | Recall | F1 | Flag rate | Cost / order |
-|---|---|---|---|---|---|
-| 0.20 | 0.333 | 0.688 | 0.449 | 30.47% | ₹32.53 |
-| 0.25 | 0.356 | 0.574 | 0.440 | 23.74% | ₹29.32 |
-| 0.30 | 0.377 | 0.439 | 0.406 | 17.15% | ₹27.81 |
-| 0.35 | 0.432 | 0.312 | 0.362 | 10.65% | ₹26.70 |
-| **0.37 ← frozen** | **0.458** | **0.269** | **0.339** | **8.64%** | **₹26.51** |
-| 0.40 | 0.477 | 0.193 | 0.275 | 5.95% | ₹27.13 |
-| 0.50 | 0.565 | 0.050 | 0.092 | 1.31% | ₹28.60 |
-
-F1 peaks near 0.25, but F1 is not the objective here — rupees are, and the cost minimum sits
-at 0.37. The 0.5 default flags barely 1% of orders and costs ₹20,835 more across 10,000
-orders, which is the whole argument for choosing a threshold on cost rather than habit.
-Full sweep, both splits, in [`reports/results/05_threshold_sweep.csv`](reports/results/05_threshold_sweep.csv).
-
-**Method in brief.**
-
-- 50,000 orders split by time, 70/10/20. Never randomly, which would leak the future.
-- Generated data calibrated against published Indian statistics and enforced by test rather
-  than asserted in prose. `pytest tests/test_calibration.py` fails the build if the return
-  rates drift.
-- The order-value curve is deliberately non-monotonic. Risk peaks in the ₹500 to ₹1,000 band
-  and falls above ₹1,000, which is what the published data shows and the opposite of the
-  intuitive assumption.
-- Pincode history is target-encoded out of fold. Doing it the naive way inflates the
-  apparent score by 0.17 AUC, which notebook `02` measures rather than assumes.
-- 11 models benchmarked on identical folds, then Optuna and FLAML compared head to head on
-  an identical wall-clock budget.
-- The test set was opened once, at settings frozen on validation beforehand.
-- Performance is reported across the full 18% to 35% return range seen across Indian cities,
-  so behaviour under a shifted base rate is measured rather than assumed.
 
 ---
 
@@ -401,8 +403,11 @@ free CPU. Only Static Spaces are free, and those cannot run a Python service.
 
 [MIT](LICENSE)
 
+## Citation
+
+Machine-readable metadata is in [`CITATION.cff`](CITATION.cff); GitHub renders a
+*Cite this repository* button from it.
+
 ## Author
 
 Anil Kumar
-
----
